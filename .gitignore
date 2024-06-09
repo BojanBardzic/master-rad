@@ -1,6 +1,9 @@
 # Prerequisites
 *.d
 
+text_editor/.idea
+text_editor/cmake-build-debug
+
 # Compiled Object files
 *.slo
 *.lo
