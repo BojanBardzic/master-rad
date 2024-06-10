@@ -4,6 +4,12 @@
 
 #include "PieceDescriptor.h"
 
+std::ostream& operator<<(std::ostream& out, const PieceDescriptor& piece) {
+    out << (piece.getSource() == SourceType::Add ? "Add, " : "Original, ")
+        << piece.getStart() << ", " << piece.getLength();
+    return out;
+}
+
 PieceDescriptor::PieceDescriptor(SourceType source, size_t start, size_t length)
     : m_source(source), m_start(start), m_length(length) {}
 

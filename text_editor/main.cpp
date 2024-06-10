@@ -5,6 +5,20 @@ void printTable(PieceTable* table) {
     std::cout << *table << std::endl;
 }
 
+void undoAndPrint(PieceTable* table, int n = 1) {
+    for (int i=0; i<n; ++i) {
+        table->undo();
+        printTable(table);
+    }
+}
+
+void redoAndPrint(PieceTable* table, int n = 1) {
+    for (int i=0; i<n; ++i) {
+        table->redo();
+        printTable(table);
+    }
+}
+
 int main() {
 
     PieceTable* table = new PieceTable();
@@ -16,6 +30,7 @@ int main() {
     table->deleteText(0, 5);
 
     printTable(table);
+
 
     table->deleteText(7, 10);
 
@@ -32,6 +47,11 @@ int main() {
     table->insert("Something new", 0);
 
     printTable(table);
+
+    undoAndPrint(table, 6);
+    redoAndPrint(table, 6);
+
+    delete table;
 
     return 0;
 }

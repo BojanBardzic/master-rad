@@ -6,10 +6,13 @@
 #define TEXT_EDITOR_PIECEDESCRIPTOR_H
 
 #include <vector>
+#include <iostream>
 #include "SourceType.h"
 
 class PieceDescriptor {
 public:
+    friend std::ostream& operator<<(std::ostream& out, const PieceDescriptor& piece);
+
     PieceDescriptor(SourceType source, size_t start, size_t length);
     ~PieceDescriptor();
 
