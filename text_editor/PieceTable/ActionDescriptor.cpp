@@ -4,6 +4,17 @@
 
 #include "ActionDescriptor.h"
 
+std::ostream& operator<<(std::ostream& out, const ActionDescriptor& action) {
+    out << (action.m_actionType == ActionType::Insert ? "Insert" : "Delete") << ", "
+        << action.m_index << std::endl;
+
+    for (size_t i=0; i<action.m_descriptors.size(); ++i) {
+        out << *(action.m_descriptors[i]) << std::endl;
+    }
+
+    return out;
+}
+
 ActionDescriptor::ActionDescriptor(ActionType actionType, std::vector<PieceDescriptor *> descriptors, size_t index)
     : m_actionType(actionType), m_descriptors(descriptors), m_index(index)  {}
 

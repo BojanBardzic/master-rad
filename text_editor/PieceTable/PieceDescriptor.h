@@ -14,6 +14,8 @@ public:
     friend std::ostream& operator<<(std::ostream& out, const PieceDescriptor& piece);
 
     PieceDescriptor(SourceType source, size_t start, size_t length);
+    PieceDescriptor(PieceDescriptor& piece);
+    PieceDescriptor(PieceDescriptor* piece);
     ~PieceDescriptor();
 
     SourceType getSource() const;
@@ -24,6 +26,10 @@ public:
     void setStart(size_t mStart);
     void setLength(size_t mLength);
 
+    static PieceDescriptor* cutoffFromRight(PieceDescriptor* piece, size_t offset);
+    static PieceDescriptor* cutoffFromLeft(PieceDescriptor* piece, size_t offset);
+
+    static std::pair<PieceDescriptor*, PieceDescriptor*> splitPiece(PieceDescriptor* piece, size_t splitIndex);
 private:
     SourceType m_source;
     size_t m_start;

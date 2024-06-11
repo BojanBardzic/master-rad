@@ -33,18 +33,15 @@ public:
 
     size_t getSize() const;
 private:
-    void append(SourceType sourceType, size_t start, size_t length, bool undoRedo);
-    void prepend(SourceType sourceType, size_t start, size_t length, bool undoRedo);
+    void append(PieceDescriptor* piece);
+    void prepend(PieceDescriptor* piece);
 
     void insertPiece(PieceDescriptor* piece, size_t index);
     void erasePiece(size_t index);
 
-    void cutoffFromRight(PieceDescriptor* piece, size_t offset);
-    void cutoffFromLeft(PieceDescriptor* piece, size_t offset);
+    PieceDescriptor* cutoffFromMiddle(PieceDescriptor* piece, size_t index, size_t leftOffset, size_t rightOffset);
 
     void reverseOperation(std::stack<ActionDescriptor*>& stack, std::stack<ActionDescriptor*>& reverseStack);
-
-    void splitPiece(size_t pieceIndex, size_t splitIndex);
 
     void addToUndo(ActionDescriptor* actionDescriptor, bool undoRedo);
 

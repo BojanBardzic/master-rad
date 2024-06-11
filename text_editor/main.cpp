@@ -19,34 +19,39 @@ void redoAndPrint(PieceTable* table, int n = 1) {
     }
 }
 
+void insertAndPrint(PieceTable* table, std::string text, size_t index) {
+    table->insert(text, index);
+    printTable(table);
+}
+
+void deleteAndPrint(PieceTable* table, size_t start, size_t end) {
+    table->deleteText(start, end);
+    printTable(table);
+}
+
 int main() {
+
+//    PieceDescriptor* piece = new PieceDescriptor(SourceType::Add, 0, 10);
+//    auto cutoffPiece = PieceDescriptor::cutoffFromRight(piece, 4);
+//
+//    if (piece != nullptr)
+//        std::cout << *piece << std::endl;
+//    if (cutoffPiece != nullptr)
+//        std::cout << *cutoffPiece << std::endl;
 
     PieceTable* table = new PieceTable();
 
-    table->insert("Something about text", 0);
+    insertAndPrint(table, "Something about text", 0);
 
-    printTable(table);
+    deleteAndPrint(table, 0, 5);
 
-    table->deleteText(0, 5);
+    deleteAndPrint(table, 7, 10);
 
-    printTable(table);
+    insertAndPrint(table, "Hello", 5);
 
+    deleteAndPrint(table, 0, table->getSize());
 
-    table->deleteText(7, 10);
-
-    printTable(table);
-
-    table->insert("Hello", 5);
-
-    printTable(table);
-
-    table->deleteText(0, table->getSize());
-
-    printTable(table);
-
-    table->insert("Something new", 0);
-
-    printTable(table);
+    insertAndPrint(table, "Something new", 0);
 
     undoAndPrint(table, 6);
     redoAndPrint(table, 6);

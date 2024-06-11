@@ -5,6 +5,12 @@
 #include "PieceTable.h"
 
 std::ostream& operator<<(std::ostream& out, const PieceTable& table) {
+    out << "PIECES SIZE: " << table.m_pieces.size() << std::endl;
+
+    for (auto piece : table.m_pieces) {
+        out << *piece << std::endl;
+    }
+
     for (auto piece : table.m_pieces) {
         if (piece->getSource() == SourceType::Original) {
             out << table.m_originalBuffer->substr(piece->getStart(), piece->getLength());
@@ -37,6 +43,19 @@ PieceTable::PieceTable(std::string& filename) {
 PieceTable::~PieceTable() {
     delete m_originalBuffer;
     delete m_addBuffer;
+
+    for (auto piece : m_pieces)
+        delete piece;
+
+    while (!m_undoStack.empty()) {
+        delete m_undoStack.top();
+        m_undoStack.pop();
+    }
+
+    while (!m_redoStack.empty()) {
+        delete m_redoStack.top();
+        m_redoStack.pop();
+    }
 }
 
 void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size_t index, bool undoRedo) {
@@ -48,46 +67,29 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
     if (index > m_size)
         index = m_size;
 
+    PieceDescriptor* newPiece = new PieceDescriptor(sourceType, start, length);
+
     if (index == 0) {
-        prepend(sourceType, start, length, undoRedo);
+        prepend(newPiece);
     } else if (index == m_size) {
-        append(sourceType, start, length, undoRedo);
+        append(newPiece);
     } else {
         size_t currentIndex = 0;
         size_t i = 0;
 
         for (auto piece : m_pieces) {
-            auto pieceStart = piece->getStart();
             auto pieceLength = piece->getLength();
 
             if (index == currentIndex) {
-                auto descriptor = new PieceDescriptor(sourceType, start, length);
-                insertPiece(descriptor, i);
-
-                addToUndo(new ActionDescriptor(ActionType::Insert, {descriptor}, index), undoRedo);
-
+                insertPiece(newPiece, i);
                 break;
             } else if (index > currentIndex && index < currentIndex + pieceLength) {
-                size_t leftStart = pieceStart;
-                size_t leftLength = index - currentIndex;
-
-                size_t rightStart = leftStart + leftLength;
-                size_t rightLength = pieceLength - leftLength;
-
-                auto pieceSourceType = piece->getSource();
-
-                auto leftPieceDescriptor = new PieceDescriptor(pieceSourceType, leftStart, leftLength);
-                auto newDescriptor = new PieceDescriptor(sourceType, start, length);
-                auto rightPieceDescriptor = new PieceDescriptor(pieceSourceType, rightStart, rightLength);
+                auto [leftPiece, rightPiece] = PieceDescriptor::splitPiece(piece, index - currentIndex);
 
                 erasePiece(i);
-
-                insertPiece(leftPieceDescriptor, i);
-                insertPiece(newDescriptor, i+1);
-                insertPiece(rightPieceDescriptor, i+2);
-
-                addToUndo(new ActionDescriptor(ActionType::Insert, {newDescriptor}, index), undoRedo);
-
+                insertPiece(leftPiece, i);
+                insertPiece(newPiece, i + 1);
+                insertPiece(rightPiece, i+2);
                 break;
             }
 
@@ -96,6 +98,7 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
         }
     }
 
+    addToUndo(new ActionDescriptor(ActionType::Insert, {new PieceDescriptor(newPiece)}, index), undoRedo);
     m_size += length;
 }
 
@@ -104,6 +107,8 @@ void PieceTable::insert(std::string text, size_t index, bool undoRedo) {
     insertTextInBuffer(text);
 }
 
+
+// Deletes text from range [start, end)
 void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
     if (start > end || start > m_size)
         return;
@@ -115,56 +120,51 @@ void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
     size_t currentIndex = 0;
     size_t i = 0;
 
+    std::vector<PieceDescriptor*> pieceDescriptors;
+
     for (auto piece : m_pieces) {
         auto pieceStart = piece->getStart();
         auto pieceLength = piece->getLength();
 
         if (start == currentIndex && deleteLength == pieceLength) {
-            addToUndo(new ActionDescriptor(ActionType::Delete, {piece}, start), undoRedo);
-
+            pieceDescriptors.push_back(new PieceDescriptor(piece));
             erasePiece(i);
+
             break;
         } else if (start >= currentIndex && start < currentIndex + pieceLength && end < currentIndex + pieceLength) {
-            auto sourceType = piece->getSource();
+            PieceDescriptor* deletePiece = nullptr;
 
-            size_t leftStart = pieceStart;
-            size_t leftLength = start - currentIndex;
+            if (start == currentIndex) {
+                deletePiece = PieceDescriptor::cutoffFromLeft(piece, end - start);
+            } else if (end == currentIndex + pieceLength - 1) {
+                deletePiece = PieceDescriptor::cutoffFromRight(piece, end - start);
+            } else {
+                deletePiece = cutoffFromMiddle(piece, i, start - currentIndex, end - currentIndex);
+            }
 
-            size_t rightStart = pieceStart + (end - currentIndex);
-            size_t rightLength = pieceLength - (end - currentIndex);
-
-            size_t deleteStart = leftStart + leftLength;
-            size_t deleteLength = pieceLength - leftLength - rightLength;
-
-            auto deletePiece = new PieceDescriptor(sourceType, deleteStart, deleteLength);
-
-            addToUndo(new ActionDescriptor(ActionType::Delete, {deletePiece}, start), undoRedo);
-
-            auto leftPiece = new PieceDescriptor(sourceType, leftStart, leftLength);
-            auto rightPiece = new PieceDescriptor(sourceType, rightStart, rightLength);
-
-            erasePiece(i);
-
-            insertPiece(leftPiece, i);
-            insertPiece(rightPiece, i+1);
+            pieceDescriptors.push_back(deletePiece);
 
             break;
         } else if (start >= currentIndex && start < currentIndex + pieceLength) {
-            std::vector<PieceDescriptor*> pieceDescriptors;
+
 
             size_t newCurrentIndex = currentIndex + pieceLength;
-            auto it = std::next(m_pieces.begin(), i+1);
+            auto it = std::next(m_pieces.begin(), i);
 
             std::vector<decltype(it)> toDelete;
 
             auto deleteOffset = start - currentIndex;
             auto cutoffLength = pieceLength - deleteOffset;
 
-            pieceDescriptors.push_back(
-                    new PieceDescriptor(piece->getSource(), pieceStart + deleteOffset, pieceLength - deleteOffset)
-                    );
+            if (deleteOffset == 0) {
+                pieceDescriptors.push_back(new PieceDescriptor(piece));
+                toDelete.push_back(it);
+            } else {
+                auto cutoffPiece = PieceDescriptor::cutoffFromRight(piece, cutoffLength);
+                pieceDescriptors.push_back(cutoffPiece);
+            }
 
-            cutoffFromRight(piece, cutoffLength);
+            it = std::next(it);
 
             while (it != m_pieces.end()) {
                 auto itPiece = (*it);
@@ -175,11 +175,9 @@ void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
                 } else {
                     auto offset = end - newCurrentIndex;
 
-                    pieceDescriptors.push_back(
-                            new PieceDescriptor(itPiece->getSource(), itPiece->getStart(), offset)
-                            );
+                    auto cutoffPiece = PieceDescriptor::cutoffFromLeft(itPiece, offset);
 
-                    cutoffFromLeft(itPiece, offset);
+                    pieceDescriptors.push_back(cutoffPiece);
 
                     break;
                 }
@@ -188,8 +186,6 @@ void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
                 it = std::next(it);
             }
 
-            addToUndo(new ActionDescriptor(ActionType::Delete, pieceDescriptors, start), undoRedo);
-
             for (size_t i=0; i<toDelete.size(); ++i) {
                 m_pieces.erase(toDelete[i]);
             }
@@ -197,11 +193,11 @@ void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
             break;
         }
 
-
         ++i;
         currentIndex += piece->getLength();
     }
 
+    addToUndo(new ActionDescriptor(ActionType::Delete, pieceDescriptors, start), undoRedo);
     m_size -= deleteLength;
 }
 
@@ -215,16 +211,12 @@ void PieceTable::redo() {
 
 size_t PieceTable::getSize() const { return m_size; }
 
-void PieceTable::append(SourceType sourceType, size_t start, size_t length, bool undoRedo) {
-    auto addDescriptor = new PieceDescriptor(sourceType, start, length);
-    m_pieces.push_back(addDescriptor);
-    addToUndo(new ActionDescriptor(ActionType::Insert, {addDescriptor}, m_size-1), undoRedo);
+void PieceTable::append(PieceDescriptor* piece) {
+    m_pieces.push_back(piece);
 }
 
-void PieceTable::prepend(SourceType sourceType, size_t start, size_t length, bool undoRedo) {
-    auto addDescriptor = new PieceDescriptor(sourceType, start, length);
-    m_pieces.push_front(addDescriptor);
-    addToUndo(new ActionDescriptor(ActionType::Insert, {addDescriptor}, 0), undoRedo);
+void PieceTable::prepend(PieceDescriptor* piece) {
+    m_pieces.push_front(piece);
 }
 
 inline void PieceTable::insertPiece(PieceDescriptor *piece, size_t index) {
@@ -232,16 +224,21 @@ inline void PieceTable::insertPiece(PieceDescriptor *piece, size_t index) {
 }
 
 inline void PieceTable::erasePiece(size_t index) {
-    m_pieces.erase(std::next(m_pieces.begin(), index));
+    auto it = std::next(m_pieces.begin(), index);
+    m_pieces.erase(it);
+    delete *it;
 }
 
-inline void PieceTable::cutoffFromRight(PieceDescriptor *piece, size_t offset) {
-    piece->setLength(piece->getLength() - offset);
-}
+PieceDescriptor* PieceTable::cutoffFromMiddle(PieceDescriptor *piece, size_t index, size_t leftOffset, size_t rightOffset) {
+    if (leftOffset > piece->getLength() || rightOffset > piece->getLength())
+        return nullptr;
 
-inline void PieceTable::cutoffFromLeft(PieceDescriptor *piece, size_t offset) {
-    piece->setStart(piece->getStart() + offset);
-    piece->setLength(piece->getLength() - offset);
+    auto cutoffRightPiece = PieceDescriptor::cutoffFromRight(piece, piece->getLength() - leftOffset);
+    auto cutoffMiddlePiece = PieceDescriptor::cutoffFromLeft(cutoffRightPiece, rightOffset - leftOffset);
+
+    insertPiece(cutoffRightPiece, index+1);
+
+    return  cutoffMiddlePiece;
 }
 
 inline void PieceTable::insertTextInBuffer(std::string &text) {
@@ -249,7 +246,6 @@ inline void PieceTable::insertTextInBuffer(std::string &text) {
 }
 
 void PieceTable::reverseOperation(std::stack<ActionDescriptor *> &stack, std::stack<ActionDescriptor *> &reverseStack) {
-
 
     if (stack.empty()) {
         std::cerr << "RETURNED" << std::endl;
@@ -259,14 +255,16 @@ void PieceTable::reverseOperation(std::stack<ActionDescriptor *> &stack, std::st
     auto action = stack.top();
     stack.pop();
 
+    auto actionType = action->getActionType();
     auto descriptors = action->getDescriptors();
     auto index = action->getIndex();
     size_t totalLength = 0;
 
-    if (action->getActionType() == ActionType::Insert) {
+    if (actionType == ActionType::Insert) {
         std::cerr << "REVERSING INSERT" << std::endl;
 
         for (size_t i=0; i<descriptors.size(); ++i) {
+            std::cerr << *descriptors[i] << std::endl;
             totalLength += descriptors[i]->getLength();
         }
 
@@ -285,30 +283,17 @@ void PieceTable::reverseOperation(std::stack<ActionDescriptor *> &stack, std::st
         }
     }
 
-    auto oppositeActionType = ActionDescriptor::getOppositeActionType(action->getActionType());
+    auto oppositeActionType = ActionDescriptor::getOppositeActionType(actionType);
     action->setActionType(oppositeActionType);
 
     reverseStack.push(action);
 }
 
-void PieceTable::splitPiece(size_t pieceIndex, size_t splitIndex) {
-    if (pieceIndex >= m_size)
-        return;
-
-    auto it = std::next(m_pieces.begin(), pieceIndex);
-    auto piece = *it;
-
-    auto rightStart = piece->getStart() + splitIndex;
-    auto rightLegnth = piece->getLength() - splitIndex;
-
-    cutoffFromRight(piece, splitIndex);
-
-    auto rightPiece = new PieceDescriptor(piece->getSource(), rightStart, rightLegnth);
-    insertPiece(rightPiece, pieceIndex+1);
-}
 
 void PieceTable::addToUndo(ActionDescriptor *actionDescriptor, bool undoRedo) {
-    if (!undoRedo)
+    if (!undoRedo) {
+        //std::cerr << "ADDING TO UNDO: " << *actionDescriptor << std::endl;
         m_undoStack.push(actionDescriptor);
+    }
 }
 

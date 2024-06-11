@@ -15,6 +15,8 @@ enum ActionType {
 
 class ActionDescriptor {
 public:
+    friend std::ostream& operator<<(std::ostream& out, const ActionDescriptor& action);
+
     ActionDescriptor(ActionType actionType, std::vector<PieceDescriptor*> descriptors, size_t index);
     ~ActionDescriptor();
 
