@@ -1,0 +1,5 @@
+"C:\Program Files\JetBrains\CLion 2020.2.4\bin\cmake\win\bin\cmake.exe" -G "Visual Studio 17 2022" -S C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\text_editor -B C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\text_editor\cmake-build-debug-visual-studio
+-- Selecting Windows SDK version 10.0.22621.0 to target Windows 10.0.19045.
+-- Configuring done
+-- Generating done
+-- Build files have been written to: C:/Users/bbard/OneDrive/Desktop/MasterRad/master-rad/text_editor/cmake-build-debug-visual-studio

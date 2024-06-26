@@ -1,0 +1,10 @@
+^C:\USERS\BBARD\ONEDRIVE\DESKTOP\MASTERRAD\MASTER-RAD\TEXT_EDITOR\CMAKE-BUILD-DEBUG-VISUAL-STUDIO\CMAKEFILES\E5063F211F1CB3DCCE59A8C93F0906DB\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\JetBrains\CLion 2020.2.4\bin\cmake\win\bin\cmake.exe" -SC:/Users/bbard/OneDrive/Desktop/MasterRad/master-rad/text_editor -BC:/Users/bbard/OneDrive/Desktop/MasterRad/master-rad/text_editor/cmake-build-debug-visual-studio --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/bbard/OneDrive/Desktop/MasterRad/master-rad/text_editor/cmake-build-debug-visual-studio/text_editor.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

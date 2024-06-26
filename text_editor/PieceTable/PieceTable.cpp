@@ -5,11 +5,11 @@
 #include "PieceTable.h"
 
 std::ostream& operator<<(std::ostream& out, const PieceTable& table) {
-    out << "PIECES SIZE: " << table.m_pieces.size() << std::endl;
-
-    for (auto piece : table.m_pieces) {
-        out << *piece << std::endl;
-    }
+//    out << "PIECES SIZE: " << table.m_pieces.size() << std::endl;
+//
+//    for (auto piece : table.m_pieces) {
+//        out << *piece << std::endl;
+//    }
 
     for (auto piece : table.m_pieces) {
         if (piece->getSource() == SourceType::Original) {
