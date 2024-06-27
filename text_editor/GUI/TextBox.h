@@ -18,21 +18,31 @@ public:
             float width = 200.0f, float height = 400.0f);
     ~TextBox();
 
+    void draw();
+
+    void moveCursorRight();
+    void moveCursorLeft();
+    void moveCursorUp();
+    void moveCursorDown();
+    void moveCursorToEnd();
+    void moveCursorToBegining();
+
     ImColor getTextColor() const;
     ImColor getBackgroundColor() const;
     float getWidth() const;
     float getHeight() const;
+    Cursor* getCursor() const;
 
     void setBackgroundColor(ImColor backgroundColor);
     void setTextColor(ImColor textColor);
     void setWidth(float width);
     void setHeight(float height);
-
-    void draw();
 private:
-    std::vector<std::string> getLines();
+    void getLines();
+    void correctCursorColumn();
 
 private:
+    std::vector<std::string> m_lines;
     PieceTable* m_pieceTable;
     Cursor* m_cursor;
     float m_width;

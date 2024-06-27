@@ -284,6 +284,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\text_editor\GUI\TextBox.h" />
     <ClCompile Include="C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\text_editor\GUI\Cursor.cpp" />
     <ClInclude Include="C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\text_editor\GUI\Cursor.h" />
+    <ClCompile Include="C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\text_editor\Input\InputHandler.cpp" />
+    <ClInclude Include="C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\text_editor\Input\InputHandler.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\text_editor\cmake-build-debug-visual-studio\ZERO_CHECK.vcxproj">

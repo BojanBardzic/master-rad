@@ -18,6 +18,7 @@
 #include <tchar.h>
 
 #include "GUI/TextBox.h"
+#include "Input/InputHandler.h"
 
 #ifdef _DEBUG
 #define DX12_ENABLE_DEBUG_LAYER
@@ -129,6 +130,9 @@ int main(int argc, char** argv)
     TextBox* textBox = new TextBox();
     textBox->setWidth(500.0f);
 
+    //CREATING INPUT HANDLER
+    InputHandler* inputHandler = new InputHandler(textBox);
+
     // Main loop
     bool done = false;
     while (!done)
@@ -166,6 +170,7 @@ int main(int argc, char** argv)
         // -------------------
         // USER CODE GOES HERE
         // -------------------
+        inputHandler->handleInput();
         textBox->draw();
 
         // Rendering

@@ -28,6 +28,9 @@
     <ClCompile Include="C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\text_editor\GUI\Cursor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\text_editor\Input\InputHandler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\submodules\imgui\backends\imgui_impl_dx12.h">
@@ -58,6 +61,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\text_editor\GUI\Cursor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\bbard\OneDrive\Desktop\MasterRad\master-rad\text_editor\Input\InputHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

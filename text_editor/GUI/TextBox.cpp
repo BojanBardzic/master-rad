@@ -3,14 +3,13 @@
 //
 
 #include "TextBox.h"
-#include "../PieceTable/PieceTable.h"
 
 TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float height)
     : m_textColor(textColor), m_backgroundColor(backgroundColor), m_width(width), m_height(height) {
     m_pieceTable = new PieceTable();
     m_cursor = new Cursor();
 
-    m_pieceTable->insert("Hello World!\nHello There!\n", 0);
+    m_pieceTable->insert("Hello World!\nHello There!\nSomething", 0);
 }
 
 TextBox::~TextBox() {
@@ -20,21 +19,20 @@ TextBox::~TextBox() {
 
 
 void TextBox::draw() {
-    bool* p_open = false;
 
     auto cursorScreenPosition = ImGui::GetCursorScreenPos();
 
     float lineHeight = ImGui::GetFontSize();
 
-    auto lines = getLines();
+    getLines();
 
     auto currentPosition = cursorScreenPosition;
 
-    for (size_t i=0; i<lines.size(); ++i) {
+    for (const std::string& line : m_lines) {
         ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight),
                                                   m_backgroundColor);
         ImGui::BeginChild("Child");
-        ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x, currentPosition.y), m_textColor, lines[i].c_str());
+        ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x, currentPosition.y), m_textColor, line.c_str());
         ImGui::EndChild();
         currentPosition.y = currentPosition.y + ImGui::GetFontSize();
     }
@@ -46,29 +44,87 @@ void TextBox::draw() {
     }
 
 
-    m_cursor->draw(cursorScreenPosition, lines[m_cursor->getRow()-1]);
+    m_cursor->draw(cursorScreenPosition, m_lines[m_cursor->getRow()-1]);
 }
 
-std::vector<std::string> TextBox::getLines() {
+void TextBox::getLines() {
     std::stringstream stream;
     stream << *m_pieceTable;
 
     std::string textBuffer = stream.str();
-    std::vector<std::string> lines;
+    m_lines.clear();
 
     auto it = textBuffer.begin();
 
     while (it != textBuffer.end()) {
         auto newLine = std::find(it, textBuffer.end(), '\n');
-        lines.push_back(textBuffer.substr(it-textBuffer.begin(), newLine-it));
+        m_lines.push_back(textBuffer.substr(it-textBuffer.begin(), newLine-it));
 
         if (newLine == textBuffer.end())
             break;
 
         it = std::next(newLine);
     }
+}
 
-    return lines;
+void TextBox::moveCursorRight() {
+    auto row = m_cursor->getRow();
+    auto col = m_cursor->getCol();
+
+    if (col > m_lines[row-1].size() && row == m_lines.size()) {
+        return;
+    }
+
+    if (col > m_lines[row-1].size()) {
+        m_cursor->setCol(1);
+        moveCursorDown();
+    } else {
+        m_cursor->setCol(col+1);
+    }
+}
+
+void TextBox::moveCursorLeft() {
+    auto row = m_cursor->getRow();
+    auto col = m_cursor->getCol();
+
+    if (col == 1 && row == 1) {
+        return;
+    }
+
+    if (col == 1) {
+        m_cursor->setCol(m_lines[row-2].size() + 1);
+        moveCursorUp();
+    } else {
+        m_cursor->setCol(col-1);
+    }
+}
+
+void TextBox::moveCursorUp() {
+    if (m_cursor->getRow() != 1) {
+        m_cursor->setRow(m_cursor->getRow()-1);
+        correctCursorColumn();
+    }
+}
+
+void TextBox::moveCursorDown() {
+    if (m_cursor->getRow() != m_lines.size()) {
+        m_cursor->setRow(m_cursor->getRow()+1);
+        correctCursorColumn();
+    }
+}
+
+void TextBox::correctCursorColumn() {
+    if (m_cursor->getCol() > m_lines[m_cursor->getRow()-1].size() + 1) {
+        moveCursorToEnd();
+    }
+}
+
+void TextBox::moveCursorToBegining() {
+    m_cursor->setCol(1);
+}
+
+void TextBox::moveCursorToEnd() {
+    m_cursor->setCol(m_lines[m_cursor->getRow()-1].size() + 1);
 }
 
 ImColor TextBox::getTextColor() const { return m_textColor; }
@@ -86,3 +142,8 @@ void TextBox::setBackgroundColor(ImColor backgroundColor) { m_backgroundColor = 
 void TextBox::setWidth(float width) { m_width = width; }
 
 void TextBox::setHeight(float height) { m_height = height; }
+
+Cursor *TextBox::getCursor() const { return m_cursor; }
+
+
+
