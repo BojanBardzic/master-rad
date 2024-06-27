@@ -1,5 +1,0 @@
-# ninja log v5
-14	518	7405141471561001	CMakeFiles/text_editor.dir/PieceTable/PieceDescriptor.cpp.obj	91fe044a6d63d976
-0	644	7405141472820979	CMakeFiles/text_editor.dir/main.cpp.obj	a7b5d7bfb4aba97c
-1	870	7405173969934985	CMakeFiles/text_editor.dir/PieceTable/ActionDescriptor.cpp.obj	4bd7bc488780f238
-8	891	7405173970154973	CMakeFiles/text_editor.dir/PieceTable/PieceTable.cpp.obj	f634d8dcf73657a9

@@ -1,4 +1,0 @@
-C:/Users/bbard/OneDrive/Desktop/MasterRad/master-rad/text_editor/cmake-build-debug-visual-studio/CMakeFiles/text_editor.dir
-C:/Users/bbard/OneDrive/Desktop/MasterRad/master-rad/text_editor/cmake-build-debug-visual-studio/CMakeFiles/imgui.dir
-C:/Users/bbard/OneDrive/Desktop/MasterRad/master-rad/text_editor/cmake-build-debug-visual-studio/CMakeFiles/ALL_BUILD.dir
-C:/Users/bbard/OneDrive/Desktop/MasterRad/master-rad/text_editor/cmake-build-debug-visual-studio/CMakeFiles/ZERO_CHECK.dir
