@@ -1,8 +1,10 @@
+
 # Prerequisites
 *.d
 
 text_editor/.idea
 text_editor/cmake-build-debug
+text_editor/cmake-build-debug-visual-studio
 
 # Compiled Object files
 *.slo
