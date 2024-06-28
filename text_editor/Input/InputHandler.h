@@ -11,7 +11,7 @@ class InputHandler {
 public:
     InputHandler(TextBox* textBox);
 
-    void handleInput();
+    void handleKeyboardInput();
 
 private:
     inline bool isKeyPressed(ImGuiKey&& key);

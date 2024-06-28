@@ -9,7 +9,8 @@ TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float 
     m_pieceTable = new PieceTable();
     m_cursor = new Cursor();
 
-    m_pieceTable->insert("Hello World!\nHello There!\nSomething", 0);
+    // Fixme: Just a test input, will be removed later.
+    m_pieceTable->insert("Hello World! World world world world world world world world world world world world\n\n\nHello There!\nSomething", 0);
 }
 
 TextBox::~TextBox() {
@@ -17,7 +18,7 @@ TextBox::~TextBox() {
     delete m_cursor;
 }
 
-
+// Draws the textBox based on PieceTable data.
 void TextBox::draw() {
 
     auto cursorScreenPosition = ImGui::GetCursorScreenPos();
@@ -26,14 +27,31 @@ void TextBox::draw() {
 
     getLines();
 
+    // We track our current position as we draw the lines
     auto currentPosition = cursorScreenPosition;
 
+    updateTextBoxSize();
+
     for (const std::string& line : m_lines) {
+        // Add a clip rectangle
+        ImGui::GetWindowDrawList()->PushClipRect(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight));
+        // Draw the background rectangle
         ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight),
                                                   m_backgroundColor);
+        // Deactivate clip rectangle
+        ImGui::GetWindowDrawList()->PopClipRect();
+
+        // We use ImGui::BeginChild to state that the text should be rendered in front of the background
         ImGui::BeginChild("Child");
-        ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x, currentPosition.y), m_textColor, line.c_str());
+        // Add a clip rectangle
+        ImGui::GetWindowDrawList()->PushClipRect(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight + 2.0f));
+        // Draw the line text
+        ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x, currentPosition.y), ImColor(255, 0, 0), line.c_str());
+        // Deactivate clip rectangle
+        ImGui::GetWindowDrawList()->PopClipRect();
         ImGui::EndChild();
+
+        // Update the current position
         currentPosition.y = currentPosition.y + ImGui::GetFontSize();
     }
 
@@ -45,26 +63,6 @@ void TextBox::draw() {
 
 
     m_cursor->draw(cursorScreenPosition, m_lines[m_cursor->getRow()-1]);
-}
-
-void TextBox::getLines() {
-    std::stringstream stream;
-    stream << *m_pieceTable;
-
-    std::string textBuffer = stream.str();
-    m_lines.clear();
-
-    auto it = textBuffer.begin();
-
-    while (it != textBuffer.end()) {
-        auto newLine = std::find(it, textBuffer.end(), '\n');
-        m_lines.push_back(textBuffer.substr(it-textBuffer.begin(), newLine-it));
-
-        if (newLine == textBuffer.end())
-            break;
-
-        it = std::next(newLine);
-    }
 }
 
 void TextBox::moveCursorRight() {
@@ -113,13 +111,7 @@ void TextBox::moveCursorDown() {
     }
 }
 
-void TextBox::correctCursorColumn() {
-    if (m_cursor->getCol() > m_lines[m_cursor->getRow()-1].size() + 1) {
-        moveCursorToEnd();
-    }
-}
-
-void TextBox::moveCursorToBegining() {
+void TextBox::moveCursorToBeginning() {
     m_cursor->setCol(1);
 }
 
@@ -135,6 +127,8 @@ float TextBox::getWidth() const { return m_width; }
 
 float TextBox::getHeight() const { return m_height; }
 
+Cursor *TextBox::getCursor() const { return m_cursor; }
+
 void TextBox::setTextColor(ImColor textColor) { m_textColor = textColor; }
 
 void TextBox::setBackgroundColor(ImColor backgroundColor) { m_backgroundColor = backgroundColor; }
@@ -143,7 +137,59 @@ void TextBox::setWidth(float width) { m_width = width; }
 
 void TextBox::setHeight(float height) { m_height = height; }
 
-Cursor *TextBox::getCursor() const { return m_cursor; }
+// Turns PieceTable data into lines.
+void TextBox::getLines() {
+
+    // Set up a string stream and load the PieceTable data into it
+    std::stringstream stream;
+    stream << *m_pieceTable;
+    // Turn the string stream into a std::string
+    std::string textBuffer = stream.str();
+
+    // Clear the previous lines
+    m_lines.clear();
+
+    auto it = textBuffer.begin();
+
+    while (it != textBuffer.end()) {
+        // Find the newline in the buffer
+        auto newLine = std::find(it, textBuffer.end(), '\n');
+        // Adds the substring starting from the current iterator unitl the newline character
+        m_lines.push_back(textBuffer.substr(it-textBuffer.begin(), newLine-it));
+
+        // If we have reached the end of the buffer we break
+        if (newLine == textBuffer.end())
+            break;
+
+        //We jump over the newline char and iterate to the next.
+        it = std::next(newLine);
+    }
+}
+
+void TextBox::correctCursorColumn() {
+    if (m_cursor->getCol() > m_lines[m_cursor->getRow()-1].size() + 1) {
+        moveCursorToEnd();
+    }
+}
+
+size_t TextBox::cursorPositionToBufferIndex() {
+    auto row = m_cursor->getRow();
+
+    size_t index = 0;
+
+    for (size_t i=0; i<row-1; i++) {
+        index += m_lines[i].size() + 1;
+    }
+
+    index += (m_cursor->getCol() - 1);
+
+    return index;
+}
+
+void TextBox::updateTextBoxSize() {
+    m_width = ImGui::GetWindowWidth() - m_margin;
+    m_height = ImGui::GetWindowHeight() - 2*m_margin;
+}
 
 
 

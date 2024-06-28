@@ -25,7 +25,7 @@ public:
     void moveCursorUp();
     void moveCursorDown();
     void moveCursorToEnd();
-    void moveCursorToBegining();
+    void moveCursorToBeginning();
 
     ImColor getTextColor() const;
     ImColor getBackgroundColor() const;
@@ -40,6 +40,8 @@ public:
 private:
     void getLines();
     void correctCursorColumn();
+    size_t cursorPositionToBufferIndex();
+    void updateTextBoxSize();
 
 private:
     std::vector<std::string> m_lines;
@@ -47,6 +49,7 @@ private:
     Cursor* m_cursor;
     float m_width;
     float m_height;
+    const float m_margin = 20.0f;
     ImColor m_backgroundColor;
     ImColor m_textColor;
 };

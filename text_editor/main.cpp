@@ -170,7 +170,10 @@ int main(int argc, char** argv)
         // -------------------
         // USER CODE GOES HERE
         // -------------------
-        inputHandler->handleInput();
+
+
+
+        inputHandler->handleKeyboardInput();
         textBox->draw();
 
         // Rendering
