@@ -39,6 +39,8 @@ private:
     void insertPiece(PieceDescriptor* piece, size_t index);
     void erasePiece(size_t index);
 
+    bool isPieceOnEndOffBuffer(PieceDescriptor* piece);
+
     PieceDescriptor* cutoffFromMiddle(PieceDescriptor* piece, size_t index, size_t leftOffset, size_t rightOffset);
 
     void reverseOperation(std::stack<ActionDescriptor*>& stack, std::stack<ActionDescriptor*>& reverseStack);

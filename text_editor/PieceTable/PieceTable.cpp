@@ -69,19 +69,32 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
 
     PieceDescriptor* newPiece = new PieceDescriptor(sourceType, start, length);
 
+
     if (index == 0) {
         prepend(newPiece);
     } else if (index == m_size) {
-        append(newPiece);
+        auto endPiece = m_pieces.back();
+
+        if (isPieceOnEndOffBuffer(endPiece)) {
+            endPiece->setLength(endPiece->getLength() + length);
+        } else {
+            append(newPiece);
+        }
     } else {
         size_t currentIndex = 0;
         size_t i = 0;
+        PieceDescriptor* previousPiece = nullptr;
 
         for (auto piece : m_pieces) {
             auto pieceLength = piece->getLength();
 
             if (index == currentIndex) {
-                insertPiece(newPiece, i);
+                if (isPieceOnEndOffBuffer(previousPiece)) {
+                    previousPiece->setLength(previousPiece->getLength() + length);
+                } else {
+                    insertPiece(newPiece, i);
+                }
+
                 break;
             } else if (index > currentIndex && index < currentIndex + pieceLength) {
                 auto [leftPiece, rightPiece] = PieceDescriptor::splitPiece(piece, index - currentIndex);
@@ -95,6 +108,7 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
 
             ++i;
             currentIndex += pieceLength;
+            previousPiece = piece;
         }
     }
 
@@ -227,6 +241,13 @@ inline void PieceTable::erasePiece(size_t index) {
     auto it = std::next(m_pieces.begin(), index);
     m_pieces.erase(it);
     delete *it;
+}
+
+bool PieceTable::isPieceOnEndOffBuffer(PieceDescriptor *piece) {
+    if (piece->getSource() == SourceType::Add && piece->getStart() + piece->getLength() == m_addBuffer->size())
+        return true;
+    else
+        return false;
 }
 
 PieceDescriptor* PieceTable::cutoffFromMiddle(PieceDescriptor *piece, size_t index, size_t leftOffset, size_t rightOffset) {
