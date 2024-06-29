@@ -59,8 +59,9 @@ PieceTable::~PieceTable() {
 }
 
 void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size_t index, bool undoRedo) {
+    std::cerr << "Entered insert" << std::endl;
+
     if (length == 0) {
-        std::cerr << "Returned" <<  std::endl;
         return;
     }
 
@@ -97,11 +98,16 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
 
                 break;
             } else if (index > currentIndex && index < currentIndex + pieceLength) {
+                std::cerr << "Entered split piece case" << std::endl;
                 auto [leftPiece, rightPiece] = PieceDescriptor::splitPiece(piece, index - currentIndex);
 
+
                 erasePiece(i);
+
                 insertPiece(leftPiece, i);
+
                 insertPiece(newPiece, i + 1);
+
                 insertPiece(rightPiece, i+2);
                 break;
             }
@@ -124,7 +130,7 @@ void PieceTable::insert(std::string text, size_t index, bool undoRedo) {
 
 // Deletes text from range [start, end)
 void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
-    if (start > end || start > m_size)
+    if (start > end || start > m_size || m_pieces.empty())
         return;
 
     if (end > m_size)
@@ -234,13 +240,16 @@ void PieceTable::prepend(PieceDescriptor* piece) {
 }
 
 inline void PieceTable::insertPiece(PieceDescriptor *piece, size_t index) {
+        std::cerr << "Inserting Piece" << std::endl;
         m_pieces.insert(std::next(m_pieces.begin(), index), piece);
 }
 
 inline void PieceTable::erasePiece(size_t index) {
     auto it = std::next(m_pieces.begin(), index);
+    auto ptr = *it;
+
     m_pieces.erase(it);
-    delete *it;
+    delete ptr;
 }
 
 bool PieceTable::isPieceOnEndOffBuffer(PieceDescriptor *piece) {

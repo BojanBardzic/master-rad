@@ -168,13 +168,15 @@ int main(int argc, char** argv)
         //    ImGui::ShowDemoWindow(&show_demo_window);
 
         // -------------------
-        // USER CODE GOES HERE
+        // APPLICATION CODE GOES HERE
         // -------------------
-
-
-
+        ImGui::Begin("TextEditor", 0, ImGuiWindowFlags_NoCollapse);
         inputHandler->handleKeyboardInput();
         textBox->draw();
+        ImGui::End();
+        // -------------------
+        // APPLICATION CODE ENDS HERE
+        // -------------------
 
         // Rendering
         ImGui::Render();

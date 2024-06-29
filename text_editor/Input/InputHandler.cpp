@@ -23,8 +23,25 @@ void InputHandler::handleKeyboardInput() {
             m_textBox->moveCursorToEnd();
         } else if (isKeyPressed(ImGuiKey_Home)) {
             m_textBox->moveCursorToBeginning();
+        } else if (isKeyPressed(ImGuiKey_Enter)) {
+            m_textBox->enterChar("\n");
+        } else if (isKeyPressed(ImGuiKey_Tab)) {
+            m_textBox->enterChar("\t");
+        } else if (isKeyPressed(ImGuiKey_Backspace)) {
+            m_textBox->backspace();
+        } else if (isKeyPressed(ImGuiKey_Delete)) {
+            m_textBox->deleteChar();
         }
 
+        if (!io.InputQueueCharacters.empty()) {
+            for (ImWchar c : io.InputQueueCharacters) {
+                char ch = (char) c;
+
+                if (std::isprint(ch)) {
+                    m_textBox->enterChar(std::string(1, ch));
+                }
+            }
+        }
     }
 
 }

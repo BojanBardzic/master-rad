@@ -20,6 +20,10 @@ public:
 
     void draw();
 
+    void enterChar(std::string str);
+    void backspace();
+    void deleteChar();
+
     void moveCursorRight();
     void moveCursorLeft();
     void moveCursorUp();

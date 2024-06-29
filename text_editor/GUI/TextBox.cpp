@@ -4,6 +4,8 @@
 
 #include "TextBox.h"
 
+#include <utility>
+
 TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float height)
     : m_textColor(textColor), m_backgroundColor(backgroundColor), m_width(width), m_height(height) {
     m_pieceTable = new PieceTable();
@@ -11,6 +13,7 @@ TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float 
 
     // Fixme: Just a test input, will be removed later.
     m_pieceTable->insert("Hello World! World world world world world world world world world world world world\n\n\nHello There!\nSomething", 0);
+    getLines();
 }
 
 TextBox::~TextBox() {
@@ -24,8 +27,6 @@ void TextBox::draw() {
     auto cursorScreenPosition = ImGui::GetCursorScreenPos();
 
     float lineHeight = ImGui::GetFontSize();
-
-    getLines();
 
     // We track our current position as we draw the lines
     auto currentPosition = cursorScreenPosition;
@@ -46,7 +47,7 @@ void TextBox::draw() {
         // Add a clip rectangle
         ImGui::GetWindowDrawList()->PushClipRect(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight + 2.0f));
         // Draw the line text
-        ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x, currentPosition.y), ImColor(255, 0, 0), line.c_str());
+        ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x, currentPosition.y), m_textColor, line.c_str());
         // Deactivate clip rectangle
         ImGui::GetWindowDrawList()->PopClipRect();
         ImGui::EndChild();
@@ -62,14 +63,21 @@ void TextBox::draw() {
     }
 
 
-    m_cursor->draw(cursorScreenPosition, m_lines[m_cursor->getRow()-1]);
+    std::string line;
+
+    if (m_lines.empty())
+        line = "";
+    else
+        line = m_lines[m_cursor->getRow()-1];
+
+    m_cursor->draw(cursorScreenPosition, line);
 }
 
 void TextBox::moveCursorRight() {
     auto row = m_cursor->getRow();
     auto col = m_cursor->getCol();
 
-    if (col > m_lines[row-1].size() && row == m_lines.size()) {
+    if (m_lines.empty() || (col > m_lines[row-1].size() && row == m_lines.size())) {
         return;
     }
 
@@ -82,10 +90,11 @@ void TextBox::moveCursorRight() {
 }
 
 void TextBox::moveCursorLeft() {
+
     auto row = m_cursor->getRow();
     auto col = m_cursor->getCol();
 
-    if (col == 1 && row == 1) {
+    if (m_lines.empty() || col == 1 && row == 1) {
         return;
     }
 
@@ -95,17 +104,18 @@ void TextBox::moveCursorLeft() {
     } else {
         m_cursor->setCol(col-1);
     }
+
 }
 
 void TextBox::moveCursorUp() {
-    if (m_cursor->getRow() != 1) {
+    if (!m_lines.empty() && m_cursor->getRow() != 1) {
         m_cursor->setRow(m_cursor->getRow()-1);
         correctCursorColumn();
     }
 }
 
 void TextBox::moveCursorDown() {
-    if (m_cursor->getRow() != m_lines.size()) {
+    if (!m_lines.empty() && m_cursor->getRow() != m_lines.size()) {
         m_cursor->setRow(m_cursor->getRow()+1);
         correctCursorColumn();
     }
@@ -116,7 +126,8 @@ void TextBox::moveCursorToBeginning() {
 }
 
 void TextBox::moveCursorToEnd() {
-    m_cursor->setCol(m_lines[m_cursor->getRow()-1].size() + 1);
+    if (!m_lines.empty())
+        m_cursor->setCol(m_lines[m_cursor->getRow()-1].size() + 1);
 }
 
 ImColor TextBox::getTextColor() const { return m_textColor; }
@@ -161,6 +172,10 @@ void TextBox::getLines() {
         if (newLine == textBuffer.end())
             break;
 
+        // If the last character in the buffer is a newLine add another line at the end
+        if (std::next(newLine) == textBuffer.end())
+            m_lines.push_back("");
+
         //We jump over the newline char and iterate to the next.
         it = std::next(newLine);
     }
@@ -189,6 +204,31 @@ size_t TextBox::cursorPositionToBufferIndex() {
 void TextBox::updateTextBoxSize() {
     m_width = ImGui::GetWindowWidth() - m_margin;
     m_height = ImGui::GetWindowHeight() - 2*m_margin;
+}
+
+void TextBox::enterChar(std::string str) {
+    std::cerr << str << std::endl;
+    size_t index = cursorPositionToBufferIndex();
+    m_pieceTable->insert(std::move(str), index);
+    getLines();
+    moveCursorRight();
+}
+
+void TextBox::backspace() {
+    size_t index = cursorPositionToBufferIndex();
+    if (index != 0) {
+        m_pieceTable->deleteText(index - 1, index);
+        moveCursorLeft();
+        getLines();
+    }
+}
+
+void TextBox::deleteChar() {
+    size_t index = cursorPositionToBufferIndex();
+    if (index != m_pieceTable->getSize()) {
+        m_pieceTable->deleteText(index, index+1);
+        getLines();
+    }
 }
 
 
