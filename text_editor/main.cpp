@@ -17,8 +17,7 @@
 #include <dxgi1_4.h>
 #include <tchar.h>
 
-#include "GUI/TextBox.h"
-#include "Input/InputHandler.h"
+#include "GUI/TextEditor.h"
 
 #ifdef _DEBUG
 #define DX12_ENABLE_DEBUG_LAYER
@@ -73,7 +72,7 @@ int main(int argc, char** argv)
     //ImGui_ImplWin32_EnableDpiAwareness();
     WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
     ::RegisterClassExW(&wc);
-    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Dear ImGui DirectX12 Example", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
+    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Text editor", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
 
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd))
@@ -126,12 +125,8 @@ int main(int argc, char** argv)
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    //CREATING TEXTBOX;
-    TextBox* textBox = new TextBox();
-    textBox->setWidth(500.0f);
-
-    //CREATING INPUT HANDLER
-    InputHandler* inputHandler = new InputHandler(textBox);
+    //CREATING TEXTEDITOR;
+    TextEditor* textEditor = new TextEditor();
 
     // Main loop
     bool done = false;
@@ -170,10 +165,7 @@ int main(int argc, char** argv)
         // -------------------
         // APPLICATION CODE GOES HERE
         // -------------------
-        ImGui::Begin("TextEditor", 0, ImGuiWindowFlags_NoCollapse);
-        inputHandler->handleKeyboardInput();
-        textBox->draw();
-        ImGui::End();
+        textEditor->draw();
         // -------------------
         // APPLICATION CODE ENDS HERE
         // -------------------
