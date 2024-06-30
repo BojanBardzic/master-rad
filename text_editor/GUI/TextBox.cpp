@@ -62,15 +62,35 @@ void TextBox::draw() {
       ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + (m_height - yOffset)), m_backgroundColor);
     }
 
+    if (m_cursor->getShouldRender())
+        drawCursor();
+    m_cursor->updateShouldRender();
+}
 
-    std::string line;
+// Enters the text in the buffer
+void TextBox::enterChar(std::string str) {
+    std::cerr << str << std::endl;
+    size_t index = cursorPositionToBufferIndex();
+    m_pieceTable->insert(std::move(str), index);
+    getLines();
+    moveCursorRight();
+}
 
-    if (m_lines.empty())
-        line = "";
-    else
-        line = m_lines[m_cursor->getRow()-1];
+void TextBox::backspace() {
+    size_t index = cursorPositionToBufferIndex();
+    if (index != 0) {
+        m_pieceTable->deleteText(index - 1, index);
+        moveCursorLeft();
+        getLines();
+    }
+}
 
-    m_cursor->draw(cursorScreenPosition, line);
+void TextBox::deleteChar() {
+    size_t index = cursorPositionToBufferIndex();
+    if (index != m_pieceTable->getSize()) {
+        m_pieceTable->deleteText(index, index+1);
+        getLines();
+    }
 }
 
 void TextBox::moveCursorRight() {
@@ -181,6 +201,21 @@ void TextBox::getLines() {
     }
 }
 
+void TextBox::drawCursor() {
+    m_cursor->calculateWidth();
+
+    ImGui::BeginChild("Child");
+    ImGui::BeginChild("Cursor");
+
+    std::string line = m_lines.empty() ? "" : m_lines[m_cursor->getRow()-1];
+
+    auto cursorPosition = m_cursor->getCursorPosition(ImGui::GetCursorScreenPos(), line);
+    ImGui::GetWindowDrawList()->AddRectFilled(cursorPosition, ImVec2(cursorPosition.x + m_cursor->getWidth(), cursorPosition.y + ImGui::GetFontSize()), ImColor(255, 0, 0));
+
+    ImGui::EndChild();
+    ImGui::EndChild();
+}
+
 void TextBox::correctCursorColumn() {
     if (m_cursor->getCol() > m_lines[m_cursor->getRow()-1].size() + 1) {
         moveCursorToEnd();
@@ -204,31 +239,6 @@ size_t TextBox::cursorPositionToBufferIndex() {
 void TextBox::updateTextBoxSize() {
     m_width = ImGui::GetWindowWidth() - m_margin;
     m_height = ImGui::GetWindowHeight() - 2*m_margin;
-}
-
-void TextBox::enterChar(std::string str) {
-    std::cerr << str << std::endl;
-    size_t index = cursorPositionToBufferIndex();
-    m_pieceTable->insert(std::move(str), index);
-    getLines();
-    moveCursorRight();
-}
-
-void TextBox::backspace() {
-    size_t index = cursorPositionToBufferIndex();
-    if (index != 0) {
-        m_pieceTable->deleteText(index - 1, index);
-        moveCursorLeft();
-        getLines();
-    }
-}
-
-void TextBox::deleteChar() {
-    size_t index = cursorPositionToBufferIndex();
-    if (index != m_pieceTable->getSize()) {
-        m_pieceTable->deleteText(index, index+1);
-        getLines();
-    }
 }
 
 

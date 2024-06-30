@@ -28,8 +28,8 @@ public:
     void moveCursorLeft();
     void moveCursorUp();
     void moveCursorDown();
-    void moveCursorToEnd();
     void moveCursorToBeginning();
+    void moveCursorToEnd();
 
     ImColor getTextColor() const;
     ImColor getBackgroundColor() const;
@@ -43,6 +43,7 @@ public:
     void setHeight(float height);
 private:
     void getLines();
+    void drawCursor();
     void correctCursorColumn();
     size_t cursorPositionToBufferIndex();
     void updateTextBoxSize();
