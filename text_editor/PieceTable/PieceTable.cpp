@@ -59,7 +59,6 @@ PieceTable::~PieceTable() {
 }
 
 void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size_t index, bool undoRedo) {
-    std::cerr << "Entered insert" << std::endl;
 
     if (length == 0) {
         return;

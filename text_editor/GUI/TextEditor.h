@@ -17,7 +17,8 @@ public:
 private:
     TextBox* m_textBox;
     InputHandler* m_inputHandler;
-    const static ImGuiWindowFlags m_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize;
+    const static ImGuiWindowFlags m_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove
+                                            | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar;
 };
 
 

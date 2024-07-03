@@ -8,6 +8,7 @@
 #include "imgui.h"
 #include "../PieceTable/PieceTable.h"
 #include "Cursor.h"
+#include "Font.h"
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -15,7 +16,7 @@
 class TextBox {
 public:
     TextBox(ImColor textColor = ImColor(0, 0, 0), ImColor backgroundColor = ImColor(255, 255, 255),
-            float width = 200.0f, float height = 400.0f);
+            float width = 200.0f, float height = 400.0f, std::string fontName = "Consolas");
     ~TextBox();
 
     void draw();
@@ -30,6 +31,9 @@ public:
     void moveCursorDown();
     void moveCursorToBeginning();
     void moveCursorToEnd();
+
+    void increaseFontSize();
+    void decreaseFontSize();
 
     ImColor getTextColor() const;
     ImColor getBackgroundColor() const;
@@ -57,6 +61,7 @@ private:
     const float m_margin = 20.0f;
     ImColor m_backgroundColor;
     ImColor m_textColor;
+    Font* m_font;
 };
 
 

@@ -9,6 +9,8 @@ InputHandler::InputHandler(TextBox *textBox) : m_textBox(textBox) {}
 void InputHandler::handleKeyboardInput() {
     auto io = ImGui::GetIO();
 
+    auto ctrl = io.KeyCtrl;
+
     if (ImGui::IsWindowFocused()) {
 
         if (isKeyPressed(ImGuiKey_RightArrow)) {
@@ -31,6 +33,10 @@ void InputHandler::handleKeyboardInput() {
             m_textBox->backspace();
         } else if (isKeyPressed(ImGuiKey_Delete)) {
             m_textBox->deleteChar();
+        } else if (ctrl && isKeyPressed(ImGuiKey_KeypadAdd)) {
+            m_textBox->increaseFontSize();
+        } else if (ctrl && isKeyPressed(ImGuiKey_KeypadSubtract)) {
+            m_textBox->decreaseFontSize();
         }
 
         if (!io.InputQueueCharacters.empty()) {

@@ -6,10 +6,15 @@
 
 #include <utility>
 
-TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float height)
+TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float height, std::string fontName)
     : m_textColor(textColor), m_backgroundColor(backgroundColor), m_width(width), m_height(height) {
+
+    FontManager::init();
+
     m_pieceTable = new PieceTable();
     m_cursor = new Cursor();
+
+    m_font = new Font( fontName);
 
     // Fixme: Just a test input, will be removed later.
     m_pieceTable->insert("Hello World! World world world world world world world world world world world world\n\n\nHello There!\nSomething", 0);
@@ -26,12 +31,14 @@ void TextBox::draw() {
 
     auto cursorScreenPosition = ImGui::GetCursorScreenPos();
 
-    float lineHeight = ImGui::GetFontSize();
-
     // We track our current position as we draw the lines
     auto currentPosition = cursorScreenPosition;
 
     updateTextBoxSize();
+
+    ImGui::PushFont(m_font->getFont());
+
+    float lineHeight = ImGui::GetFontSize();
 
     for (const std::string& line : m_lines) {
         // Add a clip rectangle
@@ -65,6 +72,8 @@ void TextBox::draw() {
     if (m_cursor->getShouldRender())
         drawCursor();
     m_cursor->updateShouldRender();
+
+    ImGui::PopFont();
 }
 
 // Enters the text in the buffer
@@ -148,6 +157,15 @@ void TextBox::moveCursorToBeginning() {
 void TextBox::moveCursorToEnd() {
     if (!m_lines.empty())
         m_cursor->setCol(m_lines[m_cursor->getRow()-1].size() + 1);
+}
+
+void TextBox::increaseFontSize() {
+    std::cerr << "Increasing font size" << std::endl;
+    m_font->increaseSize();
+}
+
+void TextBox::decreaseFontSize() {
+    m_font->decreaseSize();
 }
 
 ImColor TextBox::getTextColor() const { return m_textColor; }
