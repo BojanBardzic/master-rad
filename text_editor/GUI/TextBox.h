@@ -52,12 +52,19 @@ private:
     size_t cursorPositionToBufferIndex();
     void updateTextBoxSize();
 
+    float getCursorXAdvance(size_t lineIndex, size_t begin, size_t end);
+    void updateXScroll();
+    void updateYScroll();
+    void updateScroll();
+
 private:
     std::vector<std::string> m_lines;
     PieceTable* m_pieceTable;
     Cursor* m_cursor;
     float m_width;
     float m_height;
+    float m_xScroll;
+    float m_yScroll;
     const float m_margin = 20.0f;
     ImColor m_backgroundColor;
     ImColor m_textColor;

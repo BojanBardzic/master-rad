@@ -25,9 +25,11 @@ public:
     void setRow(size_t row);
     void setCol(size_t col);
     void setTimestamp(std::chrono::time_point<std::chrono::system_clock> timestamp);
+    void setShouldRender(bool shouldRender);
 
     void calculateWidth();
     void updateShouldRender();
+    void resetTimer();
 
     ImVec2 getCursorPosition(ImVec2 cursorScreenPosition, std::string& line);
 private:

@@ -3,17 +3,15 @@
 //
 
 #include "TextBox.h"
-
 #include <utility>
 
 TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float height, std::string fontName)
-    : m_textColor(textColor), m_backgroundColor(backgroundColor), m_width(width), m_height(height) {
+    : m_textColor(textColor), m_backgroundColor(backgroundColor), m_width(width), m_height(height), m_xScroll(0.0f), m_yScroll(0) {
 
     FontManager::init();
 
     m_pieceTable = new PieceTable();
     m_cursor = new Cursor();
-
     m_font = new Font( fontName);
 
     // Fixme: Just a test input, will be removed later.
@@ -24,6 +22,7 @@ TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float 
 TextBox::~TextBox() {
     delete m_pieceTable;
     delete m_cursor;
+    delete m_font;
 }
 
 // Draws the textBox based on PieceTable data.
@@ -36,6 +35,7 @@ void TextBox::draw() {
 
     updateTextBoxSize();
 
+    // Apply the current font
     ImGui::PushFont(m_font->getFont());
 
     float lineHeight = ImGui::GetFontSize();
@@ -52,9 +52,9 @@ void TextBox::draw() {
         // We use ImGui::BeginChild to state that the text should be rendered in front of the background
         ImGui::BeginChild("Child");
         // Add a clip rectangle
-        ImGui::GetWindowDrawList()->PushClipRect(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight + 2.0f));
+        ImGui::GetWindowDrawList()->PushClipRect(ImVec2(cursorScreenPosition.x, cursorScreenPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight + 2.0f));
         // Draw the line text
-        ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x, currentPosition.y), m_textColor, line.c_str());
+        ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x - m_xScroll, currentPosition.y - m_yScroll), m_textColor, line.c_str());
         // Deactivate clip rectangle
         ImGui::GetWindowDrawList()->PopClipRect();
         ImGui::EndChild();
@@ -103,6 +103,7 @@ void TextBox::deleteChar() {
 }
 
 void TextBox::moveCursorRight() {
+
     auto row = m_cursor->getRow();
     auto col = m_cursor->getCol();
 
@@ -110,12 +111,16 @@ void TextBox::moveCursorRight() {
         return;
     }
 
+    m_cursor->resetTimer();
+
     if (col > m_lines[row-1].size()) {
         m_cursor->setCol(1);
         moveCursorDown();
     } else {
         m_cursor->setCol(col+1);
     }
+
+    updateScroll();
 }
 
 void TextBox::moveCursorLeft() {
@@ -127,6 +132,8 @@ void TextBox::moveCursorLeft() {
         return;
     }
 
+    m_cursor->resetTimer();
+
     if (col == 1) {
         m_cursor->setCol(m_lines[row-2].size() + 1);
         moveCursorUp();
@@ -134,33 +141,40 @@ void TextBox::moveCursorLeft() {
         m_cursor->setCol(col-1);
     }
 
+    updateScroll();
 }
 
 void TextBox::moveCursorUp() {
     if (!m_lines.empty() && m_cursor->getRow() != 1) {
+        m_cursor->resetTimer();
         m_cursor->setRow(m_cursor->getRow()-1);
         correctCursorColumn();
+        updateScroll();
     }
 }
 
 void TextBox::moveCursorDown() {
     if (!m_lines.empty() && m_cursor->getRow() != m_lines.size()) {
+        m_cursor->resetTimer();
         m_cursor->setRow(m_cursor->getRow()+1);
         correctCursorColumn();
+        updateScroll();
     }
 }
 
 void TextBox::moveCursorToBeginning() {
     m_cursor->setCol(1);
+    updateXScroll();
 }
 
 void TextBox::moveCursorToEnd() {
-    if (!m_lines.empty())
-        m_cursor->setCol(m_lines[m_cursor->getRow()-1].size() + 1);
+    if (!m_lines.empty()) {
+        m_cursor->setCol(m_lines[m_cursor->getRow() - 1].size() + 1);
+        updateXScroll();
+    }
 }
 
 void TextBox::increaseFontSize() {
-    std::cerr << "Increasing font size" << std::endl;
     m_font->increaseSize();
 }
 
@@ -228,6 +242,9 @@ void TextBox::drawCursor() {
     std::string line = m_lines.empty() ? "" : m_lines[m_cursor->getRow()-1];
 
     auto cursorPosition = m_cursor->getCursorPosition(ImGui::GetCursorScreenPos(), line);
+    cursorPosition.x -= m_xScroll;
+    cursorPosition.y -= m_yScroll;
+
     ImGui::GetWindowDrawList()->AddRectFilled(cursorPosition, ImVec2(cursorPosition.x + m_cursor->getWidth(), cursorPosition.y + ImGui::GetFontSize()), ImColor(255, 0, 0));
 
     ImGui::EndChild();
@@ -257,6 +274,66 @@ size_t TextBox::cursorPositionToBufferIndex() {
 void TextBox::updateTextBoxSize() {
     m_width = ImGui::GetWindowWidth() - m_margin;
     m_height = ImGui::GetWindowHeight() - 2*m_margin;
+}
+
+// Calculates the x-axis advancement of the substring of the line at lineNumber
+// between [begin, end)
+float TextBox::getCursorXAdvance(size_t lineIndex, size_t begin, size_t end) {
+    if (lineIndex >= m_lines.size() || begin >= m_lines[lineIndex].size() || end > m_lines[lineIndex].size() + 1 || begin > end) {
+        return 0.0f;
+    }
+
+    float advance = 0.0f;
+    auto line = m_lines[lineIndex];
+
+    for (size_t i = begin; i<end; ++i) {
+        advance += ImGui::GetFont()->GetCharAdvance(line[i]);
+    }
+
+    return advance;
+}
+
+void TextBox::updateXScroll() {
+    ImGui::PushFont(m_font->getFont());
+
+    auto cursorRow = m_cursor->getRow();
+    auto cursorCol = m_cursor->getCol();
+
+    auto advance = getCursorXAdvance(cursorRow - 1, 0, cursorCol);
+
+    if (advance - m_xScroll > m_width) {
+        m_xScroll = advance - m_width;
+    } else if (advance != 0 && advance < m_xScroll) {
+        m_xScroll = advance - ImGui::GetFont()->GetCharAdvance(m_lines[cursorRow-1][cursorCol-1]);
+    } else if (advance == 0) {
+        m_xScroll = 0;
+    }
+
+    ImGui::PopFont();
+}
+
+void TextBox::updateYScroll() {
+    ImGui::PushFont(m_font->getFont());
+
+    auto cursorRow = m_cursor->getRow();
+    auto lineHeight = ImGui::GetFontSize();
+
+    std::cerr << "ROW: " << cursorRow << std::endl;
+
+    if (cursorRow * lineHeight - m_yScroll > m_height) {
+        m_yScroll = cursorRow * lineHeight - m_height;
+    } else if (cursorRow != 1 && m_yScroll >= (cursorRow * lineHeight)) {
+        m_yScroll = (cursorRow-1) * lineHeight;
+    } else if (cursorRow == 1) {
+        m_yScroll = 0;
+    }
+
+    ImGui::PopFont();
+}
+
+inline void TextBox::updateScroll() {
+    updateXScroll();
+    updateYScroll();
 }
 
 

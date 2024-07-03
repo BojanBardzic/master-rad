@@ -36,6 +36,8 @@ void Cursor::setWidth(float width) { m_width = width; }
 
 void Cursor::setTimestamp(std::chrono::time_point<std::chrono::system_clock> timestamp) { m_timestamp = timestamp; }
 
+void Cursor::setShouldRender(bool shouldRender) { m_shouldRender = shouldRender; }
+
 ImVec2 Cursor::getCursorPosition(ImVec2 cursorScreenPosition, std::string& line) {
     auto xOffset = 0.0f;
     auto yOffset = (m_row - 1) * ImGui::GetFontSize();
@@ -60,6 +62,11 @@ void Cursor::updateShouldRender() {
         m_timestamp = now;
         m_shouldRender = !m_shouldRender;
     }
+}
+
+void Cursor::resetTimer() {
+    m_shouldRender = true;
+    m_timestamp = std::chrono::system_clock::now();
 }
 
 
