@@ -7,6 +7,7 @@
 
 #include "imgui.h"
 #include "../PieceTable/PieceTable.h"
+#include "LineBuffer.h"
 #include "Cursor.h"
 #include "Font.h"
 #include <string>
@@ -46,20 +47,16 @@ public:
     void setWidth(float width);
     void setHeight(float height);
 private:
-    void getLines();
     void drawCursor();
-    void correctCursorColumn();
-    size_t cursorPositionToBufferIndex();
     void updateTextBoxSize();
 
-    float getCursorXAdvance(size_t lineIndex, size_t begin, size_t end);
     void updateXScroll();
     void updateYScroll();
     void updateScroll();
 
 private:
-    std::vector<std::string> m_lines;
     PieceTable* m_pieceTable;
+    LineBuffer* m_lineBuffer;
     Cursor* m_cursor;
     float m_width;
     float m_height;

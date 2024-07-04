@@ -9,32 +9,43 @@
 #include <string>
 #include <iostream>
 #include <chrono>
+#include "LineBuffer.h"
+#include "TextCoordinates.h"
 
 class Cursor {
 public:
-    Cursor(size_t row = 1, size_t col = 1);
+    Cursor(LineBuffer* lineBuffer, size_t row = 1, size_t col = 1);
     ~Cursor();
+
+    void moveRight();
+    void moveLeft();
+    void moveUp();
+    void moveDown();
+    void moveToBeginning();
+    void moveToEnd();
+
+    size_t positionToBufferIndex() const;
+    float getXAdvance() const;
 
     size_t getRow() const;
     size_t getCol() const;
     float getWidth() const;
-    std::chrono::time_point<std::chrono::system_clock> getTimestamp() const;
     bool getShouldRender() const;
 
     void setWidth(float width);
     void setRow(size_t row);
     void setCol(size_t col);
-    void setTimestamp(std::chrono::time_point<std::chrono::system_clock> timestamp);
-    void setShouldRender(bool shouldRender);
 
     void calculateWidth();
     void updateShouldRender();
-    void resetTimer();
 
-    ImVec2 getCursorPosition(ImVec2 cursorScreenPosition, std::string& line);
+    ImVec2 getCursorPosition(ImVec2 cursorScreenPosition);
 private:
-    size_t m_row;
-    size_t m_col;
+    void resetTimer();
+    void correctColumn();
+
+    TextCoordinates m_coord;
+    LineBuffer* m_lineBuffer;
     float m_width;
     std::chrono::time_point<std::chrono::system_clock> m_timestamp;
     const std::chrono::duration<double> m_drawInterval = std::chrono::duration<double>(0.75);

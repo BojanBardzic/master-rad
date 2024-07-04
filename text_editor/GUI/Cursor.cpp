@@ -4,45 +4,122 @@
 
 #include "Cursor.h"
 
-Cursor::Cursor(size_t row, size_t col)
-    : m_row(row), m_col(col), m_timestamp(std::chrono::system_clock::now()), m_shouldRender(true)
-    {
+Cursor::Cursor(LineBuffer* lineBuffer, size_t row, size_t col)
+    : m_lineBuffer(lineBuffer), m_timestamp(std::chrono::system_clock::now()),
+      m_shouldRender(true), m_coord(TextCoordinates(row, col)) {
     calculateWidth();
 }
 
 Cursor::~Cursor() {}
 
-size_t Cursor::getRow() const { return m_row; }
+void Cursor::moveRight() {
+    if (m_lineBuffer->isEmpty() || (m_coord.m_col > m_lineBuffer->lineAt(m_coord.m_row-1).size() && m_coord.m_row == m_lineBuffer->getSize())) {
+        return;
+    }
 
-size_t Cursor::getCol() const { return m_col; }
+    resetTimer();
+
+    if (m_coord.m_col > m_lineBuffer->lineAt(m_coord.m_row-1).size()) {
+        m_coord.m_col = 1;
+        moveDown();
+    } else {
+        m_coord.m_col += 1;
+    }
+}
+
+void Cursor::moveLeft() {
+    if (m_lineBuffer->isEmpty() || m_coord.m_col == 1 && m_coord.m_row == 1) {
+        return;
+    }
+
+    resetTimer();
+
+    if (m_coord.m_col == 1) {
+        m_coord.m_col = m_lineBuffer->lineAt(m_coord.m_row-2).size() + 1;
+        moveUp();
+    } else {
+        m_coord.m_col -= 1;
+    }
+}
+
+void Cursor::moveUp() {
+    if (!m_lineBuffer->isEmpty() && m_coord.m_row != 1) {
+        resetTimer();
+        m_coord.m_row -= 1;
+        correctColumn();
+    }
+}
+
+void Cursor::moveDown() {
+    if (!m_lineBuffer->isEmpty() && m_coord.m_row != m_lineBuffer->getSize()) {
+        resetTimer();
+        m_coord.m_row += 1;
+        correctColumn();
+    }
+}
+
+void Cursor::moveToBeginning() { m_coord.m_col = 1; }
+
+void Cursor::moveToEnd() {
+    if (!m_lineBuffer->isEmpty()) {
+        m_coord.m_col = m_lineBuffer->lineAt(m_coord.m_row - 1).size() + 1;
+    }
+}
+
+size_t Cursor::positionToBufferIndex() const {
+    size_t index = 0;
+
+    for (size_t i=0; i<m_coord.m_row-1; i++) {
+        index += m_lineBuffer->lineAt(i).size() + 1;
+    }
+
+    index += (m_coord.m_col - 1);
+
+    return index;
+}
+
+// Calculates the x-axis advancement of the substring of the line at cursorRow-1
+// between [0, cursorCol)
+float Cursor::getXAdvance() const {
+    float advance = 0.0f;
+    auto line = m_lineBuffer->lineAt(m_coord.m_row-1);
+
+    for (size_t i = 0; i<m_coord.m_col; ++i) {
+        advance += ImGui::GetFont()->GetCharAdvance(line[i]);
+    }
+
+    return advance;
+}
+
+size_t Cursor::getRow() const { return m_coord.m_row; }
+
+size_t Cursor::getCol() const { return m_coord.m_col; }
 
 float Cursor::getWidth() const { return m_width; }
-
-std::chrono::time_point<std::chrono::system_clock> Cursor::getTimestamp() const { return m_timestamp; }
 
 bool Cursor::getShouldRender() const { return m_shouldRender; }
 
 void Cursor::setRow(size_t row) {
     m_shouldRender = true;
-    m_row = row;
+    if (row != 0)
+        m_coord.m_row = row;
 }
 
 void Cursor::setCol(size_t col) {
     m_shouldRender = true;
-    m_col = col;
+    if (col != 0)
+        m_coord.m_col = col;
 }
 
 void Cursor::setWidth(float width) { m_width = width; }
 
-void Cursor::setTimestamp(std::chrono::time_point<std::chrono::system_clock> timestamp) { m_timestamp = timestamp; }
-
-void Cursor::setShouldRender(bool shouldRender) { m_shouldRender = shouldRender; }
-
-ImVec2 Cursor::getCursorPosition(ImVec2 cursorScreenPosition, std::string& line) {
+ImVec2 Cursor::getCursorPosition(ImVec2 cursorScreenPosition) {
     auto xOffset = 0.0f;
-    auto yOffset = (m_row - 1) * ImGui::GetFontSize();
+    auto yOffset = (m_coord.m_row - 1) * ImGui::GetFontSize();
 
-    for (int i=0; i<m_col-1; ++i) {
+    auto line = m_lineBuffer->lineAt(m_coord.m_row-1);
+
+    for (int i=0; i<m_coord.m_col-1; ++i) {
         xOffset += ImGui::GetFont()->GetCharAdvance(line[i]);
     }
 
@@ -67,6 +144,12 @@ void Cursor::updateShouldRender() {
 void Cursor::resetTimer() {
     m_shouldRender = true;
     m_timestamp = std::chrono::system_clock::now();
+}
+
+void Cursor::correctColumn() {
+    if (m_coord.m_col > m_lineBuffer->lineAt(m_coord.m_row-1).size() + 1) {
+        moveToEnd();
+    }
 }
 
 
