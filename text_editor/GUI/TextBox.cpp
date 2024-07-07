@@ -13,11 +13,13 @@ TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float 
     m_pieceTable = new PieceTable();
     m_lineBuffer = new LineBuffer(m_pieceTable);
     m_cursor = new Cursor(m_lineBuffer);
+    m_selection = new Selection(m_lineBuffer);
     m_font = new Font( fontName);
 
     // Fixme: Just a test input, will be removed later.
     m_pieceTable->insert("Hello World! World world world world world world world world world world world world\n\n\nHello There!\nSomething", 0);
     m_lineBuffer->getLines();
+
 }
 
 TextBox::~TextBox() {
@@ -47,20 +49,47 @@ void TextBox::draw() {
         // Get the line
         auto line = m_lineBuffer->lineAt(i);
 
-        // Add a clip rectangle
-        ImGui::GetWindowDrawList()->PushClipRect(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight));
-        // Draw the background rectangle
-        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight),
-                                                  m_backgroundColor);
-        // Deactivate clip rectangle
-        ImGui::GetWindowDrawList()->PopClipRect();
+        // Draw background rectangle
+        drawRectangle(currentPosition, lineHeight);
 
         // We use ImGui::BeginChild to state that the text should be rendered in front of the background
         ImGui::BeginChild("Child");
+
         // Add a clip rectangle
         ImGui::GetWindowDrawList()->PushClipRect(ImVec2(cursorScreenPosition.x, cursorScreenPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight + 2.0f));
-        // Draw the line text
-        ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x - m_xScroll, currentPosition.y - m_yScroll), m_textColor, line.c_str());
+
+        auto overlap = m_selection->getIntersectionWithLine(i);
+
+        if (m_selection->getActive() && overlap != std::pair{0, 0}) {
+            auto leftOverlap = overlap.first;
+            auto rightOverlap = overlap.second;
+
+            auto leftString = line.substr(0, leftOverlap);
+            auto middleString = line.substr(leftOverlap, rightOverlap-leftOverlap);
+            auto rightString = line.substr(rightOverlap);
+
+            float xAdvance = 0.0f;
+
+            if (!leftString.empty()) {
+                ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x - m_xScroll, currentPosition.y - m_yScroll), m_textColor, leftString.c_str());
+                xAdvance += getXAdvance(leftString);
+            }
+
+            auto secondStringAdvance = getXAdvance(middleString);
+            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x + xAdvance, currentPosition.y), ImVec2(currentPosition.x + xAdvance + secondStringAdvance, currentPosition.y + lineHeight), ImColor(20, 20, 150));
+            ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x + xAdvance - m_xScroll, currentPosition.y - m_yScroll), ImColor(255, 255, 255), middleString.c_str());
+            xAdvance += secondStringAdvance;
+
+
+            if (!rightString.empty()) {
+                ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x + xAdvance - m_xScroll, currentPosition.y - m_yScroll), m_textColor, rightString.c_str());
+            }
+
+        } else {
+            // Draw the line text
+            ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x - m_xScroll, currentPosition.y - m_yScroll), m_textColor, line.c_str());
+        }
+
         // Deactivate clip rectangle
         ImGui::GetWindowDrawList()->PopClipRect();
         ImGui::EndChild();
@@ -84,58 +113,148 @@ void TextBox::draw() {
 
 // Enters the text in the buffer
 void TextBox::enterChar(std::string str) {
-    std::cerr << str << std::endl;
-    size_t index = m_cursor->positionToBufferIndex();
+    deleteSelection();
+
+    auto coords = m_cursor->getCoords();
+    size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
     m_pieceTable->insert(std::move(str), index);
     m_lineBuffer->getLines();
-    moveCursorRight();
+    m_cursor->moveRight();
+    updateScroll();
 }
 
 void TextBox::backspace() {
-    size_t index = m_cursor->positionToBufferIndex();
+    auto deleted = deleteSelection();
+
+    if (deleted) {
+        return;
+    }
+
+    auto coords = m_cursor->getCoords();
+    size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
     if (index != 0) {
         m_pieceTable->deleteText(index - 1, index);
-        moveCursorLeft();
+        m_cursor->moveLeft();
+        updateScroll();
         m_lineBuffer->getLines();
     }
 }
 
 void TextBox::deleteChar() {
-    size_t index = m_cursor->positionToBufferIndex();
+    auto deleted = deleteSelection();
+
+    if (deleted)
+        return;
+
+    auto coords = m_cursor->getCoords();
+    size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
     if (index != m_pieceTable->getSize()) {
         m_pieceTable->deleteText(index, index+1);
         m_lineBuffer->getLines();
     }
 }
 
-void TextBox::moveCursorRight() {
+void TextBox::selectAll() {
+    m_cursor->moveToEndOfFile();
+    auto newCoords = m_cursor->getCoords();
+    m_selection->selectAll(newCoords);
+}
+
+void TextBox::moveCursorRight(bool shift) {
+
+    auto oldCoords = m_cursor->getCoords();
+
     m_cursor->moveRight();
     updateScroll();
+
+    auto newCoords = m_cursor->getCoords();
+
+    if (shift) {
+        m_selection->update(oldCoords, newCoords);
+    } else {
+        if (m_selection->getActive()) {
+            m_cursor->setCoords(m_selection->getEnd());
+        }
+        m_selection->setActive(false);
+    }
 }
 
-void TextBox::moveCursorLeft() {
+void TextBox::moveCursorLeft(bool shift) {
+    auto oldCoords = m_cursor->getCoords();
+
     m_cursor->moveLeft();
     updateScroll();
+
+    auto newCoords = m_cursor->getCoords();
+
+    if (shift) {
+        m_selection->update(oldCoords, newCoords);
+    } else {
+        if (m_selection->getActive()) {
+            m_cursor->setCoords(m_selection->getStart());
+        }
+        m_selection->setActive(false);
+    }
 }
 
-void TextBox::moveCursorUp() {
+void TextBox::moveCursorUp(bool shift) {
+    auto oldCoords = m_cursor->getCoords();
+
     m_cursor->moveUp();
     updateScroll();
+
+    auto newCoords = m_cursor->getCoords();
+
+    if (shift) {
+        m_selection->update(oldCoords, newCoords);
+    } else {
+        m_selection->setActive(false);
+    }
 }
 
-void TextBox::moveCursorDown() {
+void TextBox::moveCursorDown(bool shift) {
+    auto oldCoords = m_cursor->getCoords();
+
     m_cursor->moveDown();
     updateScroll();
+
+    auto newCoords = m_cursor->getCoords();
+
+    if (shift) {
+        m_selection->update(oldCoords, newCoords);
+    } else {
+        m_selection->setActive(false);
+    }
 }
 
-void TextBox::moveCursorToBeginning() {
+void TextBox::moveCursorToBeginning(bool shift) {
+    auto oldCoords = m_cursor->getCoords();
+
     m_cursor->moveToBeginning();
     updateXScroll();
+
+    auto newCoords = m_cursor->getCoords();
+
+    if (shift) {
+        m_selection->update(oldCoords, newCoords);
+    } else {
+        m_selection->setActive(false);
+    }
 }
 
-void TextBox::moveCursorToEnd() {
+void TextBox::moveCursorToEnd(bool shift) {
+    auto oldCoords = m_cursor->getCoords();
+
     m_cursor->moveToEnd();
     updateXScroll();
+
+    auto newCoords = m_cursor->getCoords();
+
+    if (shift) {
+        m_selection->update(oldCoords, newCoords);
+    } else {
+        m_selection->setActive(false);
+    }
 }
 
 void TextBox::increaseFontSize() {
@@ -164,6 +283,16 @@ void TextBox::setWidth(float width) { m_width = width; }
 
 void TextBox::setHeight(float height) { m_height = height; }
 
+inline void TextBox::drawRectangle(ImVec2 currentPosition, float lineHeight) {
+    // Add a clip rectangle
+    ImGui::GetWindowDrawList()->PushClipRect(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight));
+    // Draw the background rectangle
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight),
+                                              m_backgroundColor);
+    // Deactivate clip rectangle
+    ImGui::GetWindowDrawList()->PopClipRect();
+}
+
 void TextBox::drawCursor() {
     m_cursor->calculateWidth();
 
@@ -173,6 +302,7 @@ void TextBox::drawCursor() {
     std::string line = m_lineBuffer->isEmpty() ? "" : m_lineBuffer->lineAt(m_cursor->getRow()-1);
 
     auto cursorPosition = m_cursor->getCursorPosition(ImGui::GetCursorScreenPos());
+
     cursorPosition.x -= m_xScroll;
     cursorPosition.y -= m_yScroll;
 
@@ -186,6 +316,16 @@ void TextBox::drawCursor() {
 void TextBox::updateTextBoxSize() {
     m_width = ImGui::GetWindowWidth() - m_margin;
     m_height = ImGui::GetWindowHeight() - 2*m_margin;
+}
+
+float TextBox::getXAdvance(std::string &str) {
+    float advance = 0.0f;
+
+    for (const char& c : str) {
+        advance += ImGui::GetFont()->GetCharAdvance(c);
+    }
+
+    return advance;
 }
 
 void TextBox::updateXScroll() {
@@ -230,6 +370,25 @@ inline void TextBox::updateScroll() {
     updateXScroll();
     updateYScroll();
 }
+
+bool TextBox::deleteSelection() {
+    if (!m_selection->getActive())
+        return false;
+
+    auto startIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getStart());
+    auto endIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getEnd());
+    std::cerr << "Deleting from index " << startIndex << " to index " << endIndex << "." << std::endl;
+    m_pieceTable->deleteText(startIndex, endIndex);
+
+    m_lineBuffer->getLines();
+    m_cursor->setCoords(m_selection->getStart());
+
+    m_selection->setActive(false);
+
+    return true;
+}
+
+
 
 
 

@@ -66,16 +66,9 @@ void Cursor::moveToEnd() {
     }
 }
 
-size_t Cursor::positionToBufferIndex() const {
-    size_t index = 0;
-
-    for (size_t i=0; i<m_coord.m_row-1; i++) {
-        index += m_lineBuffer->lineAt(i).size() + 1;
-    }
-
-    index += (m_coord.m_col - 1);
-
-    return index;
+void Cursor::moveToEndOfFile() {
+    m_coord.m_row = m_lineBuffer->getSize();
+    m_coord.m_col = m_lineBuffer->lineAt(m_coord.m_row-1).size() + 1;
 }
 
 // Calculates the x-axis advancement of the substring of the line at cursorRow-1
@@ -95,6 +88,8 @@ size_t Cursor::getRow() const { return m_coord.m_row; }
 
 size_t Cursor::getCol() const { return m_coord.m_col; }
 
+TextCoordinates Cursor::getCoords() const { return m_coord; }
+
 float Cursor::getWidth() const { return m_width; }
 
 bool Cursor::getShouldRender() const { return m_shouldRender; }
@@ -111,13 +106,15 @@ void Cursor::setCol(size_t col) {
         m_coord.m_col = col;
 }
 
+void Cursor::setCoords(const TextCoordinates &coords) { m_coord = coords; }
+
 void Cursor::setWidth(float width) { m_width = width; }
 
 ImVec2 Cursor::getCursorPosition(ImVec2 cursorScreenPosition) {
     auto xOffset = 0.0f;
     auto yOffset = (m_coord.m_row - 1) * ImGui::GetFontSize();
 
-    auto line = m_lineBuffer->lineAt(m_coord.m_row-1);
+    auto line = m_lineBuffer->isEmpty() ? "" : m_lineBuffer->lineAt(m_coord.m_row-1);
 
     for (int i=0; i<m_coord.m_col-1; ++i) {
         xOffset += ImGui::GetFont()->GetCharAdvance(line[i]);

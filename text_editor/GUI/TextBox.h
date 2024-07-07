@@ -10,6 +10,7 @@
 #include "LineBuffer.h"
 #include "Cursor.h"
 #include "Font.h"
+#include "Selection.h"
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -26,12 +27,14 @@ public:
     void backspace();
     void deleteChar();
 
-    void moveCursorRight();
-    void moveCursorLeft();
-    void moveCursorUp();
-    void moveCursorDown();
-    void moveCursorToBeginning();
-    void moveCursorToEnd();
+    void selectAll();
+
+    void moveCursorRight(bool shift);
+    void moveCursorLeft(bool shift);
+    void moveCursorUp(bool shift);
+    void moveCursorDown(bool shift);
+    void moveCursorToBeginning(bool shift);
+    void moveCursorToEnd(bool shift);
 
     void increaseFontSize();
     void decreaseFontSize();
@@ -47,8 +50,12 @@ public:
     void setWidth(float width);
     void setHeight(float height);
 private:
+    bool deleteSelection();
+
+    void drawRectangle(ImVec2 currentPosition, float lineHeight);
     void drawCursor();
     void updateTextBoxSize();
+    static float getXAdvance(std::string& str);
 
     void updateXScroll();
     void updateYScroll();
@@ -58,6 +65,7 @@ private:
     PieceTable* m_pieceTable;
     LineBuffer* m_lineBuffer;
     Cursor* m_cursor;
+    Selection* m_selection;
     float m_width;
     float m_height;
     float m_xScroll;

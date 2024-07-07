@@ -48,12 +48,24 @@ std::string &LineBuffer::lineAt(size_t index) const {
     if (index < m_lines->size()) {
         return m_lines->at(index);
     } else {
-        throw std::exception();
+        throw std::exception("Line at index dosen't exist!");
     }
 }
 
 size_t LineBuffer::getSize() const { return m_lines->size(); }
 
 bool LineBuffer::isEmpty() const { return m_lines->empty(); }
+
+size_t LineBuffer::textCoordinatesToBufferIndex(const TextCoordinates &coords) {
+    size_t index = 0;
+
+    for (size_t i=0; i<coords.m_row-1; i++) {
+        index += lineAt(i).size() + 1;
+    }
+
+    index += (coords.m_col - 1);
+
+    return index;
+}
 
 

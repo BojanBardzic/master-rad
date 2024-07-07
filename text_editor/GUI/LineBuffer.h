@@ -7,6 +7,7 @@
 
 #include <sstream>
 #include "../PieceTable/PieceTable.h"
+#include "TextCoordinates.h"
 
 class LineBuffer {
 public:
@@ -14,9 +15,12 @@ public:
     ~LineBuffer();
 
     void getLines();
+    size_t textCoordinatesToBufferIndex(const TextCoordinates& coords);
+
     std::string& lineAt(size_t index) const;
     size_t getSize() const;
     bool isEmpty() const;
+
 private:
     std::vector<std::string>* m_lines;
     PieceTable* m_pieceTable;

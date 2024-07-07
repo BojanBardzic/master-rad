@@ -23,18 +23,20 @@ public:
     void moveDown();
     void moveToBeginning();
     void moveToEnd();
+    void moveToEndOfFile();
 
-    size_t positionToBufferIndex() const;
     float getXAdvance() const;
 
     size_t getRow() const;
     size_t getCol() const;
+    TextCoordinates getCoords() const;
     float getWidth() const;
     bool getShouldRender() const;
 
     void setWidth(float width);
     void setRow(size_t row);
     void setCol(size_t col);
+    void setCoords(const TextCoordinates& coords);
 
     void calculateWidth();
     void updateShouldRender();

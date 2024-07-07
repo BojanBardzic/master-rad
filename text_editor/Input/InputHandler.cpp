@@ -10,21 +10,22 @@ void InputHandler::handleKeyboardInput() {
     auto io = ImGui::GetIO();
 
     auto ctrl = io.KeyCtrl;
+    auto shift = io.KeyShift;
 
     if (ImGui::IsWindowFocused()) {
 
         if (isKeyPressed(ImGuiKey_RightArrow)) {
-            m_textBox->moveCursorRight();
+            m_textBox->moveCursorRight(shift);
         } else if (isKeyPressed(ImGuiKey_LeftArrow)) {
-            m_textBox->moveCursorLeft();
+            m_textBox->moveCursorLeft(shift);
         } else if (isKeyPressed(ImGuiKey_UpArrow)) {
-            m_textBox->moveCursorUp();
+            m_textBox->moveCursorUp(shift);
         } else if (isKeyPressed(ImGuiKey_DownArrow)) {
-            m_textBox->moveCursorDown();
+            m_textBox->moveCursorDown(shift);
         } else if (isKeyPressed(ImGuiKey_End)) {
-            m_textBox->moveCursorToEnd();
+            m_textBox->moveCursorToEnd(shift);
         } else if (isKeyPressed(ImGuiKey_Home)) {
-            m_textBox->moveCursorToBeginning();
+            m_textBox->moveCursorToBeginning(shift);
         } else if (isKeyPressed(ImGuiKey_Enter)) {
             m_textBox->enterChar("\n");
         } else if (isKeyPressed(ImGuiKey_Tab)) {
@@ -37,6 +38,8 @@ void InputHandler::handleKeyboardInput() {
             m_textBox->increaseFontSize();
         } else if (ctrl && isKeyPressed(ImGuiKey_KeypadSubtract)) {
             m_textBox->decreaseFontSize();
+        } else if (ctrl && isKeyPressed(ImGuiKey_A)) {
+            m_textBox->selectAll();
         }
 
         if (!io.InputQueueCharacters.empty()) {
