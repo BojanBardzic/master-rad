@@ -47,14 +47,36 @@ void InputHandler::handleKeyboardInput() {
                 char ch = (char) c;
 
                 if (std::isprint(ch)) {
+                    std::cerr << "Entering char: " << ch << std::endl;
                     m_textBox->enterChar(std::string(1, ch));
                 }
             }
+            io.InputQueueCharacters.resize(0);
         }
     }
 
 }
 
+void InputHandler::handleMouseInput() {
+    auto position = ImGui::GetMousePos();
+
+    if (ImGui::GetMouseClickedCount(ImGuiMouseButton_Left) > 0) {
+        if (isInsideTextBox(position)) {
+            m_textBox->moveCursorToMousePosition(position);
+        }
+    } else if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+        auto delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
+        m_textBox->setMouseSelection(position, delta);
+    }
+}
+
 bool InputHandler::isKeyPressed(ImGuiKey&& key) {
     return ImGui::IsKeyPressed(ImGui::GetKeyIndex(key));
+}
+
+bool InputHandler::isInsideTextBox(ImVec2& mousePosition) {
+    auto topLeft = ImGui::GetCursorScreenPos();
+    auto bottomRight = ImVec2(topLeft.x + m_textBox->getWidth(), topLeft.y + m_textBox->getHeight());
+
+    return mousePosition.x >= topLeft.x && mousePosition.x <= bottomRight.x && mousePosition.y >= topLeft.y && mousePosition.y <= bottomRight.y;
 }

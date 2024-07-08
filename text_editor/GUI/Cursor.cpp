@@ -114,7 +114,7 @@ ImVec2 Cursor::getCursorPosition(ImVec2 cursorScreenPosition) {
     auto xOffset = 0.0f;
     auto yOffset = (m_coord.m_row - 1) * ImGui::GetFontSize();
 
-    auto line = m_lineBuffer->isEmpty() ? "" : m_lineBuffer->lineAt(m_coord.m_row-1);
+    auto line = m_lineBuffer->lineAt(m_coord.m_row-1);
 
     for (int i=0; i<m_coord.m_col-1; ++i) {
         xOffset += ImGui::GetFont()->GetCharAdvance(line[i]);

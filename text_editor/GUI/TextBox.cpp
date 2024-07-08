@@ -52,9 +52,6 @@ void TextBox::draw() {
         // Draw background rectangle
         drawRectangle(currentPosition, lineHeight);
 
-        // We use ImGui::BeginChild to state that the text should be rendered in front of the background
-        ImGui::BeginChild("Child");
-
         // Add a clip rectangle
         ImGui::GetWindowDrawList()->PushClipRect(ImVec2(cursorScreenPosition.x, cursorScreenPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight + 2.0f));
 
@@ -76,7 +73,7 @@ void TextBox::draw() {
             }
 
             auto secondStringAdvance = getXAdvance(middleString);
-            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x + xAdvance, currentPosition.y), ImVec2(currentPosition.x + xAdvance + secondStringAdvance, currentPosition.y + lineHeight), ImColor(20, 20, 150));
+            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x + xAdvance - m_xScroll, currentPosition.y - m_yScroll), ImVec2(currentPosition.x + xAdvance + secondStringAdvance, currentPosition.y + lineHeight), ImColor(20, 20, 150));
             ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x + xAdvance - m_xScroll, currentPosition.y - m_yScroll), ImColor(255, 255, 255), middleString.c_str());
             xAdvance += secondStringAdvance;
 
@@ -92,7 +89,6 @@ void TextBox::draw() {
 
         // Deactivate clip rectangle
         ImGui::GetWindowDrawList()->PopClipRect();
-        ImGui::EndChild();
 
         // Update the current position
         currentPosition.y = currentPosition.y + ImGui::GetFontSize();
@@ -257,6 +253,29 @@ void TextBox::moveCursorToEnd(bool shift) {
     }
 }
 
+void TextBox::moveCursorToMousePosition(ImVec2& mousePosition) {
+    m_selection->setActive(false);
+    auto coords = mousePositionToTextCoordinates(mousePosition);
+    m_cursor->setCoords(coords);
+}
+
+void TextBox::setMouseSelection(ImVec2& endPosition, ImVec2& delta) {
+    const ImVec2 startPosition = {endPosition.x - delta.x, endPosition.y - delta.y};
+    auto startPositionCoords = mousePositionToTextCoordinates(startPosition);
+    auto endPositionCoords = mousePositionToTextCoordinates(endPosition);
+
+    if (startPositionCoords > endPositionCoords) {
+        auto tmp = startPositionCoords;
+        startPositionCoords = endPositionCoords;
+        endPositionCoords = tmp;
+    }
+
+    m_selection->setStart(startPositionCoords);
+    m_selection->setEnd(endPositionCoords);
+    m_selection->setActive(true);
+    m_cursor->setCoords(endPositionCoords);
+}
+
 void TextBox::increaseFontSize() {
     m_font->increaseSize();
 }
@@ -294,12 +313,10 @@ inline void TextBox::drawRectangle(ImVec2 currentPosition, float lineHeight) {
 }
 
 void TextBox::drawCursor() {
+
     m_cursor->calculateWidth();
 
-    ImGui::BeginChild("Child");
-    ImGui::BeginChild("Cursor");
-
-    std::string line = m_lineBuffer->isEmpty() ? "" : m_lineBuffer->lineAt(m_cursor->getRow()-1);
+    std::string line = m_lineBuffer->lineAt(m_cursor->getRow()-1);
 
     auto cursorPosition = m_cursor->getCursorPosition(ImGui::GetCursorScreenPos());
 
@@ -307,9 +324,6 @@ void TextBox::drawCursor() {
     cursorPosition.y -= m_yScroll;
 
     ImGui::GetWindowDrawList()->AddRectFilled(cursorPosition, ImVec2(cursorPosition.x + m_cursor->getWidth(), cursorPosition.y + ImGui::GetFontSize()), ImColor(255, 0, 0));
-
-    ImGui::EndChild();
-    ImGui::EndChild();
 }
 
 
@@ -387,6 +401,35 @@ bool TextBox::deleteSelection() {
 
     return true;
 }
+
+TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosition) {
+    ImGui::PushFont(m_font->getFont());
+
+    float rows = (mousePosition.y - 10.0f) / ImGui::GetFontSize();
+    int maxValue = m_lineBuffer->isEmpty() ? 1 : m_lineBuffer->getSize() - 1;
+    size_t row = std::min(maxValue, (int) rows);
+    auto line = m_lineBuffer->lineAt(row);
+
+    size_t column = 1;
+
+    float xCoords = ImGui::GetCursorScreenPos().x - 5.0f;
+    size_t i = 0;
+    while (i < line.size()) {
+        auto advance = ImGui::GetFont()->GetCharAdvance(line.at(i));
+        if (mousePosition.x < xCoords + advance) {
+            break;
+        }
+        ++column;
+        xCoords += advance;
+        ++i;
+    }
+
+    ImGui::PopFont();
+
+    return TextCoordinates(row+1, column);
+}
+
+
 
 
 

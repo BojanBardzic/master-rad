@@ -22,6 +22,7 @@ public:
     bool isEmpty() const;
 
 private:
+    static std::string m_emptyLine;
     std::vector<std::string>* m_lines;
     PieceTable* m_pieceTable;
 };

@@ -4,6 +4,8 @@
 
 #include "LineBuffer.h"
 
+std::string LineBuffer::m_emptyLine = "";
+
 LineBuffer::LineBuffer(PieceTable *pieceTable) : m_pieceTable(pieceTable) {
     m_lines = new std::vector<std::string>();
 }
@@ -44,18 +46,6 @@ void LineBuffer::getLines() {
     }
 }
 
-std::string &LineBuffer::lineAt(size_t index) const {
-    if (index < m_lines->size()) {
-        return m_lines->at(index);
-    } else {
-        throw std::exception("Line at index dosen't exist!");
-    }
-}
-
-size_t LineBuffer::getSize() const { return m_lines->size(); }
-
-bool LineBuffer::isEmpty() const { return m_lines->empty(); }
-
 size_t LineBuffer::textCoordinatesToBufferIndex(const TextCoordinates &coords) {
     size_t index = 0;
 
@@ -67,5 +57,17 @@ size_t LineBuffer::textCoordinatesToBufferIndex(const TextCoordinates &coords) {
 
     return index;
 }
+
+std::string &LineBuffer::lineAt(size_t index) const {
+    if (index < m_lines->size()) {
+        return m_lines->at(index);
+    } else {
+        return m_emptyLine;
+    }
+}
+
+size_t LineBuffer::getSize() const { return m_lines->size(); }
+
+bool LineBuffer::isEmpty() const { return m_lines->empty(); }
 
 

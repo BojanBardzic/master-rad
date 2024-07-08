@@ -24,6 +24,7 @@ void TextEditor::draw() {
 
     ImGui::Begin("TextEditor", 0, m_flags);
     m_inputHandler->handleKeyboardInput();
+    m_inputHandler->handleMouseInput();
     m_textBox->draw();
     ImGui::End();
 }

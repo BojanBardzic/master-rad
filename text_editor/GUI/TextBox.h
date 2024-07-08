@@ -35,6 +35,8 @@ public:
     void moveCursorDown(bool shift);
     void moveCursorToBeginning(bool shift);
     void moveCursorToEnd(bool shift);
+    void moveCursorToMousePosition(ImVec2& mousePosition);
+    void setMouseSelection(ImVec2& endPosition, ImVec2& delta);
 
     void increaseFontSize();
     void decreaseFontSize();
@@ -51,6 +53,7 @@ public:
     void setHeight(float height);
 private:
     bool deleteSelection();
+    TextCoordinates mousePositionToTextCoordinates(const ImVec2& mousePosition);
 
     void drawRectangle(ImVec2 currentPosition, float lineHeight);
     void drawCursor();

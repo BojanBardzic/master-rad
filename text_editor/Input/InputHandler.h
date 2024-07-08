@@ -12,9 +12,11 @@ public:
     InputHandler(TextBox* textBox);
 
     void handleKeyboardInput();
+    void handleMouseInput();
 
 private:
     inline bool isKeyPressed(ImGuiKey&& key);
+    bool isInsideTextBox(ImVec2& mousePosition);
 
     TextBox* m_textBox;
 };
