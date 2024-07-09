@@ -59,6 +59,8 @@ void InputHandler::handleKeyboardInput() {
 
 void InputHandler::handleMouseInput() {
     auto position = ImGui::GetMousePos();
+    auto mouseWheel = ImGui::GetIO().MouseWheel;
+    auto shift = ImGui::GetIO().KeyShift;
 
     if (ImGui::GetMouseClickedCount(ImGuiMouseButton_Left) > 0) {
         if (isInsideTextBox(position)) {
@@ -67,6 +69,9 @@ void InputHandler::handleMouseInput() {
     } else if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
         auto delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
         m_textBox->setMouseSelection(position, delta);
+    } else if (mouseWheel != 0.0f) {
+        std::cerr << "Mouse wheel: " << mouseWheel << std::endl;
+        m_textBox->mouseWheelScroll(shift, mouseWheel);
     }
 }
 

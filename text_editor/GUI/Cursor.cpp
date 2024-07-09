@@ -138,6 +138,19 @@ void Cursor::updateShouldRender() {
     }
 }
 
+float Cursor::getXAdvance(std::string& str) {
+    std::cerr << "Entered getXAdvance" << std::endl;
+    float advance = 0.0f;
+
+    for (const char& c : str) {
+        std::cerr << "Entering iteration.." << std::endl;
+        advance += ImGui::GetFont()->GetCharAdvance(c);
+    }
+
+    std::cerr << "Exited getXAdvance" << std::endl;
+    return advance;
+}
+
 void Cursor::resetTimer() {
     m_shouldRender = true;
     m_timestamp = std::chrono::system_clock::now();

@@ -11,6 +11,7 @@
 #include "Cursor.h"
 #include "Font.h"
 #include "Selection.h"
+#include "Scroll.h"
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -35,8 +36,10 @@ public:
     void moveCursorDown(bool shift);
     void moveCursorToBeginning(bool shift);
     void moveCursorToEnd(bool shift);
+
     void moveCursorToMousePosition(ImVec2& mousePosition);
     void setMouseSelection(ImVec2& endPosition, ImVec2& delta);
+    void mouseWheelScroll(bool shift, float& mouseWheel);
 
     void increaseFontSize();
     void decreaseFontSize();
@@ -58,21 +61,20 @@ private:
     void drawRectangle(ImVec2 currentPosition, float lineHeight);
     void drawCursor();
     void updateTextBoxSize();
-    static float getXAdvance(std::string& str);
 
-    void updateXScroll();
-    void updateYScroll();
-    void updateScroll();
+
+    void updateMaxXScroll();
+    void updateMaxYScroll();
 
 private:
     PieceTable* m_pieceTable;
     LineBuffer* m_lineBuffer;
     Cursor* m_cursor;
     Selection* m_selection;
+    Scroll* m_scroll;
     float m_width;
     float m_height;
-    float m_xScroll;
-    float m_yScroll;
+
     const float m_margin = 20.0f;
     ImColor m_backgroundColor;
     ImColor m_textColor;

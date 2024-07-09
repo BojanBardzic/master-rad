@@ -42,6 +42,7 @@ public:
     void updateShouldRender();
 
     ImVec2 getCursorPosition(ImVec2 cursorScreenPosition);
+    float getXAdvance(std::string& str);
 private:
     void resetTimer();
     void correctColumn();

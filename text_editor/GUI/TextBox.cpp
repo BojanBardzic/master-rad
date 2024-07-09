@@ -6,7 +6,7 @@
 #include <utility>
 
 TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float height, std::string fontName)
-    : m_textColor(textColor), m_backgroundColor(backgroundColor), m_width(width), m_height(height), m_xScroll(0.0f), m_yScroll(0) {
+    : m_textColor(textColor), m_backgroundColor(backgroundColor), m_width(width), m_height(height) {
 
     FontManager::init();
 
@@ -14,22 +14,27 @@ TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float 
     m_lineBuffer = new LineBuffer(m_pieceTable);
     m_cursor = new Cursor(m_lineBuffer);
     m_selection = new Selection(m_lineBuffer);
-    m_font = new Font( fontName);
+    m_font = new Font(fontName);
+    m_scroll = new Scroll(m_lineBuffer, m_cursor, m_font);
 
     // Fixme: Just a test input, will be removed later.
     m_pieceTable->insert("Hello World! World world world world world world world world world world world world\n\n\nHello There!\nSomething", 0);
     m_lineBuffer->getLines();
-
 }
 
 TextBox::~TextBox() {
-    delete m_pieceTable;
-    delete m_cursor;
+    delete m_scroll;
     delete m_font;
+    delete m_selection;
+    delete m_cursor;
+    delete m_lineBuffer;
+    delete m_pieceTable;
 }
 
 // Draws the textBox based on PieceTable data.
 void TextBox::draw() {
+    if(!m_scroll->isInit())
+        m_scroll->init(m_width, m_height);
 
     auto cursorScreenPosition = ImGui::GetCursorScreenPos();
 
@@ -41,8 +46,7 @@ void TextBox::draw() {
     // Apply the current font
     ImGui::PushFont(m_font->getFont());
 
-    float lineHeight = ImGui::GetFontSize();
-
+    auto lineHeight = ImGui::GetFontSize();
     auto linesSize = m_lineBuffer->getSize();
 
     for (size_t i=0; i<linesSize; ++i) {
@@ -57,6 +61,9 @@ void TextBox::draw() {
 
         auto overlap = m_selection->getIntersectionWithLine(i);
 
+        auto xScroll = m_scroll->getXScroll();
+        auto yScroll = m_scroll->getYScroll();
+
         if (m_selection->getActive() && overlap != std::pair{0, 0}) {
             auto leftOverlap = overlap.first;
             auto rightOverlap = overlap.second;
@@ -68,23 +75,23 @@ void TextBox::draw() {
             float xAdvance = 0.0f;
 
             if (!leftString.empty()) {
-                ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x - m_xScroll, currentPosition.y - m_yScroll), m_textColor, leftString.c_str());
-                xAdvance += getXAdvance(leftString);
+                ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x - xScroll, currentPosition.y - yScroll), m_textColor, leftString.c_str());
+                xAdvance += m_cursor->getXAdvance(leftString);
             }
 
-            auto secondStringAdvance = getXAdvance(middleString);
-            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x + xAdvance - m_xScroll, currentPosition.y - m_yScroll), ImVec2(currentPosition.x + xAdvance + secondStringAdvance, currentPosition.y + lineHeight), ImColor(20, 20, 150));
-            ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x + xAdvance - m_xScroll, currentPosition.y - m_yScroll), ImColor(255, 255, 255), middleString.c_str());
+            auto secondStringAdvance = m_cursor->getXAdvance(middleString);
+            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x + xAdvance - xScroll, currentPosition.y - yScroll), ImVec2(currentPosition.x + xAdvance + secondStringAdvance, currentPosition.y + lineHeight), ImColor(20, 20, 150));
+            ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x + xAdvance - xScroll, currentPosition.y - yScroll), ImColor(255, 255, 255), middleString.c_str());
             xAdvance += secondStringAdvance;
 
 
             if (!rightString.empty()) {
-                ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x + xAdvance - m_xScroll, currentPosition.y - m_yScroll), m_textColor, rightString.c_str());
+                ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x + xAdvance - xScroll, currentPosition.y - yScroll), m_textColor, rightString.c_str());
             }
 
         } else {
             // Draw the line text
-            ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x - m_xScroll, currentPosition.y - m_yScroll), m_textColor, line.c_str());
+            ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x - xScroll, currentPosition.y - yScroll), m_textColor, line.c_str());
         }
 
         // Deactivate clip rectangle
@@ -104,6 +111,7 @@ void TextBox::draw() {
         drawCursor();
     m_cursor->updateShouldRender();
 
+
     ImGui::PopFont();
 }
 
@@ -116,7 +124,8 @@ void TextBox::enterChar(std::string str) {
     m_pieceTable->insert(std::move(str), index);
     m_lineBuffer->getLines();
     m_cursor->moveRight();
-    updateScroll();
+    m_scroll->updateScroll(m_width, m_height);
+    m_scroll->updateMaxScroll(m_width, m_height);
 }
 
 void TextBox::backspace() {
@@ -131,8 +140,9 @@ void TextBox::backspace() {
     if (index != 0) {
         m_pieceTable->deleteText(index - 1, index);
         m_cursor->moveLeft();
-        updateScroll();
+        m_scroll->updateScroll(m_width, m_height);
         m_lineBuffer->getLines();
+        m_scroll->updateMaxScroll(m_width, m_height);
     }
 }
 
@@ -147,6 +157,7 @@ void TextBox::deleteChar() {
     if (index != m_pieceTable->getSize()) {
         m_pieceTable->deleteText(index, index+1);
         m_lineBuffer->getLines();
+        m_scroll->updateMaxScroll(m_width, m_height);
     }
 }
 
@@ -161,7 +172,7 @@ void TextBox::moveCursorRight(bool shift) {
     auto oldCoords = m_cursor->getCoords();
 
     m_cursor->moveRight();
-    updateScroll();
+    m_scroll->updateScroll(m_width, m_height);
 
     auto newCoords = m_cursor->getCoords();
 
@@ -179,7 +190,7 @@ void TextBox::moveCursorLeft(bool shift) {
     auto oldCoords = m_cursor->getCoords();
 
     m_cursor->moveLeft();
-    updateScroll();
+    m_scroll->updateScroll(m_width, m_height);
 
     auto newCoords = m_cursor->getCoords();
 
@@ -197,7 +208,7 @@ void TextBox::moveCursorUp(bool shift) {
     auto oldCoords = m_cursor->getCoords();
 
     m_cursor->moveUp();
-    updateScroll();
+    m_scroll->updateScroll(m_width, m_height);
 
     auto newCoords = m_cursor->getCoords();
 
@@ -212,7 +223,7 @@ void TextBox::moveCursorDown(bool shift) {
     auto oldCoords = m_cursor->getCoords();
 
     m_cursor->moveDown();
-    updateScroll();
+    m_scroll->updateScroll(m_width, m_height);
 
     auto newCoords = m_cursor->getCoords();
 
@@ -227,7 +238,7 @@ void TextBox::moveCursorToBeginning(bool shift) {
     auto oldCoords = m_cursor->getCoords();
 
     m_cursor->moveToBeginning();
-    updateXScroll();
+    m_scroll->updateXScroll(m_width);
 
     auto newCoords = m_cursor->getCoords();
 
@@ -242,7 +253,7 @@ void TextBox::moveCursorToEnd(bool shift) {
     auto oldCoords = m_cursor->getCoords();
 
     m_cursor->moveToEnd();
-    updateXScroll();
+    m_scroll->updateXScroll(m_width);
 
     auto newCoords = m_cursor->getCoords();
 
@@ -276,12 +287,21 @@ void TextBox::setMouseSelection(ImVec2& endPosition, ImVec2& delta) {
     m_cursor->setCoords(endPositionCoords);
 }
 
+void TextBox::mouseWheelScroll(bool shift, float &mouseWheel) {
+    if (shift)
+        m_scroll->mouseWheelXScroll(mouseWheel);
+    else
+        m_scroll->mouseWheelYScroll(mouseWheel);
+}
+
 void TextBox::increaseFontSize() {
     m_font->increaseSize();
+    m_scroll->updateMaxScroll(m_width, m_height);
 }
 
 void TextBox::decreaseFontSize() {
     m_font->decreaseSize();
+    m_scroll->updateMaxScroll(m_width, m_height);
 }
 
 ImColor TextBox::getTextColor() const { return m_textColor; }
@@ -313,76 +333,38 @@ inline void TextBox::drawRectangle(ImVec2 currentPosition, float lineHeight) {
 }
 
 void TextBox::drawCursor() {
-
     m_cursor->calculateWidth();
-
-    std::string line = m_lineBuffer->lineAt(m_cursor->getRow()-1);
 
     auto cursorPosition = m_cursor->getCursorPosition(ImGui::GetCursorScreenPos());
 
-    cursorPosition.x -= m_xScroll;
-    cursorPosition.y -= m_yScroll;
+    cursorPosition.x -= m_scroll->getXScroll();
+    cursorPosition.y -= m_scroll->getYScroll();
 
     ImGui::GetWindowDrawList()->AddRectFilled(cursorPosition, ImVec2(cursorPosition.x + m_cursor->getWidth(), cursorPosition.y + ImGui::GetFontSize()), ImColor(255, 0, 0));
 }
 
 
 void TextBox::updateTextBoxSize() {
-    m_width = ImGui::GetWindowWidth() - m_margin;
-    m_height = ImGui::GetWindowHeight() - 2*m_margin;
-}
+    bool changedWidth = false;
+    bool changedHeight = false;
 
-float TextBox::getXAdvance(std::string &str) {
-    float advance = 0.0f;
+    auto newWidth = ImGui::GetWindowWidth() - m_margin;
+    auto newHeight = ImGui::GetWindowHeight() - m_margin;
 
-    for (const char& c : str) {
-        advance += ImGui::GetFont()->GetCharAdvance(c);
+    if (m_width != newWidth) {
+        m_width = newWidth;
+        changedWidth = true;
     }
 
-    return advance;
-}
-
-void TextBox::updateXScroll() {
-    ImGui::PushFont(m_font->getFont());
-
-    auto cursorRow = m_cursor->getRow();
-    auto cursorCol = m_cursor->getCol();
-
-    auto advance = m_cursor->getXAdvance();
-
-    if (advance - m_xScroll > m_width) {
-        m_xScroll = advance - m_width;
-    } else if (advance != 0 && advance < m_xScroll) {
-        m_xScroll = advance - ImGui::GetFont()->GetCharAdvance(m_lineBuffer->lineAt(cursorRow-1)[cursorCol-1]);
-    } else if (advance == 0) {
-        m_xScroll = 0;
+    if (m_height != newHeight) {
+        m_height = newHeight;
+        changedHeight = true;
     }
 
-    ImGui::PopFont();
-}
-
-void TextBox::updateYScroll() {
-    ImGui::PushFont(m_font->getFont());
-
-    auto cursorRow = m_cursor->getRow();
-    auto lineHeight = ImGui::GetFontSize();
-
-    std::cerr << "ROW: " << cursorRow << std::endl;
-
-    if (cursorRow * lineHeight - m_yScroll > m_height) {
-        m_yScroll = cursorRow * lineHeight - m_height;
-    } else if (cursorRow != 1 && m_yScroll >= (cursorRow * lineHeight)) {
-        m_yScroll = (cursorRow-1) * lineHeight;
-    } else if (cursorRow == 1) {
-        m_yScroll = 0;
-    }
-
-    ImGui::PopFont();
-}
-
-inline void TextBox::updateScroll() {
-    updateXScroll();
-    updateYScroll();
+    if (changedWidth)
+        m_scroll->updateMaxXScroll(m_width);
+    if (changedHeight)
+        m_scroll->updateMaxYScroll(m_height);
 }
 
 bool TextBox::deleteSelection() {
@@ -395,6 +377,7 @@ bool TextBox::deleteSelection() {
     m_pieceTable->deleteText(startIndex, endIndex);
 
     m_lineBuffer->getLines();
+    m_scroll->updateMaxScroll(m_width, m_height);
     m_cursor->setCoords(m_selection->getStart());
 
     m_selection->setActive(false);

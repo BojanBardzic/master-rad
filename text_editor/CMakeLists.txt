@@ -21,7 +21,7 @@ add_executable(text_editor
 
 file( GLOB LIB_SOURCES ${IMGUI_PATH}/*.cpp ${IMGUI_BACKENDS_PATH}/imgui_impl_win32.cpp ${IMGUI_BACKENDS_PATH}/imgui_impl_dx12.cpp)
 file( GLOB LIB_HEADERS ${IMGUI_PATH}/*.h ${IMGUI_BACKENDS_PATH}/imgui_impl_win32.h ${IMGUI_BACKENDS_PATH}/imgui_impl_dx12.h)
-add_library(imgui ${LIB_SOURCES} ${LIB_HEADERS} GUI/TextBox.cpp GUI/TextBox.h GUI/Cursor.cpp GUI/Cursor.h Input/InputHandler.cpp Input/InputHandler.h GUI/TextEditor.cpp GUI/TextEditor.h GUI/Font.cpp GUI/Font.h GUI/FontManager.cpp GUI/FontManager.h GUI/Selection.cpp GUI/Selection.h GUI/LineBuffer.cpp GUI/LineBuffer.h GUI/TextCoordinates.cpp GUI/TextCoordinates.h)
+add_library(imgui ${LIB_SOURCES} ${LIB_HEADERS} GUI/TextBox.cpp GUI/TextBox.h GUI/Cursor.cpp GUI/Cursor.h Input/InputHandler.cpp Input/InputHandler.h GUI/TextEditor.cpp GUI/TextEditor.h GUI/Font.cpp GUI/Font.h GUI/FontManager.cpp GUI/FontManager.h GUI/Selection.cpp GUI/Selection.h GUI/LineBuffer.cpp GUI/LineBuffer.h GUI/TextCoordinates.cpp GUI/TextCoordinates.h GUI/Scroll.cpp GUI/Scroll.h)
 
 target_link_libraries(text_editor PRIVATE imgui)
 target_link_libraries(text_editor PRIVATE d3d12.lib)
