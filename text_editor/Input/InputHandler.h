@@ -6,6 +6,7 @@
 #define TEXT_EDITOR_INPUTHANDLER_H
 
 #include "../GUI/TextBox.h"
+#include "../GUI/MyRectangle.h"
 
 class InputHandler {
 public:
@@ -17,6 +18,8 @@ public:
 private:
     inline bool isKeyPressed(ImGuiKey&& key);
     bool isInsideTextBox(ImVec2& mousePosition);
+    bool isInsideHorizontalScrollbar(ImVec2& mousePosition);
+    bool isInsideVerticalScrollbar(ImVec2& mousePosition);
 
     TextBox* m_textBox;
 };

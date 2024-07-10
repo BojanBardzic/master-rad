@@ -77,6 +77,9 @@ float Cursor::getXAdvance() const {
     float advance = 0.0f;
     auto line = m_lineBuffer->lineAt(m_coord.m_row-1);
 
+    if (m_coord.m_col == 1)
+        return 0.0f;
+
     for (size_t i = 0; i<m_coord.m_col; ++i) {
         advance += ImGui::GetFont()->GetCharAdvance(line[i]);
     }
@@ -139,15 +142,12 @@ void Cursor::updateShouldRender() {
 }
 
 float Cursor::getXAdvance(std::string& str) {
-    std::cerr << "Entered getXAdvance" << std::endl;
     float advance = 0.0f;
 
     for (const char& c : str) {
-        std::cerr << "Entering iteration.." << std::endl;
         advance += ImGui::GetFont()->GetCharAdvance(c);
     }
 
-    std::cerr << "Exited getXAdvance" << std::endl;
     return advance;
 }
 

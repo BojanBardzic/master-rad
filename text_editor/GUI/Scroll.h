@@ -8,6 +8,7 @@
 #include "LineBuffer.h"
 #include "Font.h"
 #include "Cursor.h"
+#include "MyRectangle.h"
 
 class Scroll {
 public:
@@ -31,10 +32,25 @@ public:
     float getYScroll() const;
     float getMaxXScroll() const;
     float getMaxYScroll() const;
+    const MyRectangle& getHScrollbarRect() const;
+    const MyRectangle& getVScrollbarRect() const;
+    const MyRectangle& getHScrollSelectRect() const;
+    const MyRectangle& getVScrollSelectRect() const;
+
+    void setXScroll(const float& xScroll);
+    void setYScroll(const float& yScroll);
+    void setHScrollbarRect(const MyRectangle &hScrollbarRect);
+    void setVScrollbarRect(const MyRectangle &vScrollbarRect);
+    void setHScrollSelectRect(const MyRectangle &hScrollSelectRect);
+    void setVScrollSelectRect(const MyRectangle &vScrollSelectRect);
 private:
     LineBuffer* m_lineBuffer;
     Cursor* m_cursor;
     Font* m_font;
+    MyRectangle m_hScrollbarRect;
+    MyRectangle m_vScrollbarRect;
+    MyRectangle m_hScrollSelectRect;
+    MyRectangle m_vScrollSelectRect;
     float m_maxXScroll;
     float m_maxYScroll;
     float m_xScroll;

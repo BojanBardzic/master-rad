@@ -63,14 +63,24 @@ void InputHandler::handleMouseInput() {
     auto shift = ImGui::GetIO().KeyShift;
 
     if (ImGui::GetMouseClickedCount(ImGuiMouseButton_Left) > 0) {
-        if (isInsideTextBox(position)) {
+        if (isInsideHorizontalScrollbar(position)) {
+            m_textBox->horizontalBarClick(position);
+        } else if (isInsideVerticalScrollbar(position)) {
+            m_textBox->verticalBarClick(position);
+        } if (isInsideTextBox(position)) {
             m_textBox->moveCursorToMousePosition(position);
         }
     } else if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
         auto delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
-        m_textBox->setMouseSelection(position, delta);
+
+        if (isInsideHorizontalScrollbar(position)) {
+            m_textBox->horizontalScroll(position, delta);
+        } else if (isInsideVerticalScrollbar(position)) {
+            m_textBox->verticalScroll(position, delta);
+        } else  if (isInsideTextBox(position)) {
+            m_textBox->setMouseSelection(position, delta);
+        }
     } else if (mouseWheel != 0.0f) {
-        std::cerr << "Mouse wheel: " << mouseWheel << std::endl;
         m_textBox->mouseWheelScroll(shift, mouseWheel);
     }
 }
@@ -82,6 +92,17 @@ bool InputHandler::isKeyPressed(ImGuiKey&& key) {
 bool InputHandler::isInsideTextBox(ImVec2& mousePosition) {
     auto topLeft = ImGui::GetCursorScreenPos();
     auto bottomRight = ImVec2(topLeft.x + m_textBox->getWidth(), topLeft.y + m_textBox->getHeight());
+    auto rect = MyRectangle(topLeft, bottomRight);
 
-    return mousePosition.x >= topLeft.x && mousePosition.x <= bottomRight.x && mousePosition.y >= topLeft.y && mousePosition.y <= bottomRight.y;
+    return MyRectangle::isInsideRectangle(rect, mousePosition);
 }
+
+bool InputHandler::isInsideHorizontalScrollbar(ImVec2 &mousePosition) {
+    return MyRectangle::isInsideRectangle(m_textBox->getHScrollbarRect(), mousePosition);
+}
+
+bool InputHandler::isInsideVerticalScrollbar(ImVec2 &mousePosition) {
+    return MyRectangle::isInsideRectangle(m_textBox->getVScrollbarRect(), mousePosition);
+}
+
+

@@ -23,12 +23,13 @@ void Scroll::updateXScroll(float &width) {
 
     auto advance = m_cursor->getXAdvance();
 
-    if (advance - m_xScroll > width) {
+    if (advance != 0.0f && advance - m_xScroll > width) {
         m_xScroll = advance - width;
-    } else if (advance != 0 && advance < m_xScroll) {
+    } else if (advance != 0.0f && advance < m_xScroll) {
         m_xScroll = advance - ImGui::GetFont()->GetCharAdvance(m_lineBuffer->lineAt(cursorRow-1)[cursorCol-1]);
-    } else if (advance == 0) {
-        m_xScroll = 0;
+    } else if (advance == 0.0f) {
+        std::cerr << "setting scroll to 0" << std::endl;
+        m_xScroll = 0.0f;
     }
 
     ImGui::PopFont();
@@ -128,6 +129,26 @@ float Scroll::getYScroll() const { return m_yScroll; }
 float Scroll::getMaxXScroll() const { return m_maxXScroll; }
 
 float Scroll::getMaxYScroll() const { return m_maxYScroll; }
+
+const MyRectangle &Scroll::getHScrollbarRect() const { return m_hScrollbarRect; }
+
+const MyRectangle &Scroll::getVScrollbarRect() const { return m_vScrollbarRect; }
+
+const MyRectangle &Scroll::getHScrollSelectRect() const { return m_hScrollSelectRect; }
+
+const MyRectangle &Scroll::getVScrollSelectRect() const { return m_vScrollSelectRect; }
+
+void Scroll::setXScroll(const float &xScroll) { m_xScroll = xScroll; }
+
+void Scroll::setYScroll(const float& yScroll) { m_yScroll = yScroll; }
+
+void Scroll::setHScrollbarRect(const MyRectangle &hScrollbarRect) { m_hScrollbarRect = hScrollbarRect; }
+
+void Scroll::setVScrollbarRect(const MyRectangle &vScrollbarRect) { m_vScrollbarRect = vScrollbarRect; }
+
+void Scroll::setHScrollSelectRect(const MyRectangle &hScrollSelectRect) { m_hScrollSelectRect = hScrollSelectRect; }
+
+void Scroll::setVScrollSelectRect(const MyRectangle &vScrollSelectRect) { m_vScrollSelectRect = vScrollSelectRect; }
 
 
 

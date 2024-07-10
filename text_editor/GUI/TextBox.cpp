@@ -3,10 +3,11 @@
 //
 
 #include "TextBox.h"
+#include "ThemeManager.h"
 #include <utility>
 
-TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float height, std::string fontName)
-    : m_textColor(textColor), m_backgroundColor(backgroundColor), m_width(width), m_height(height) {
+TextBox::TextBox(float width, float height, std::string fontName, std::string theme)
+    : m_width(width - m_xMargin), m_height(height - m_yMargin) {
 
     FontManager::init();
 
@@ -16,6 +17,7 @@ TextBox::TextBox(ImColor textColor, ImColor backgroundColor, float width, float 
     m_selection = new Selection(m_lineBuffer);
     m_font = new Font(fontName);
     m_scroll = new Scroll(m_lineBuffer, m_cursor, m_font);
+    m_theme = ThemeManager::getTheme(theme);
 
     // Fixme: Just a test input, will be removed later.
     m_pieceTable->insert("Hello World! World world world world world world world world world world world world\n\n\nHello There!\nSomething", 0);
@@ -57,12 +59,14 @@ void TextBox::draw() {
         drawRectangle(currentPosition, lineHeight);
 
         // Add a clip rectangle
-        ImGui::GetWindowDrawList()->PushClipRect(ImVec2(cursorScreenPosition.x, cursorScreenPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight + 2.0f));
+        auto bottomRight = ImVec2(currentPosition.x + m_width, std::min(currentPosition.y + lineHeight + 2.0f, cursorScreenPosition.y + m_height));
+        ImGui::GetWindowDrawList()->PushClipRect(cursorScreenPosition, bottomRight);
 
         auto overlap = m_selection->getIntersectionWithLine(i);
 
         auto xScroll = m_scroll->getXScroll();
         auto yScroll = m_scroll->getYScroll();
+        auto textPosition = ImVec2(currentPosition.x - xScroll, currentPosition.y - yScroll);
 
         if (m_selection->getActive() && overlap != std::pair{0, 0}) {
             auto leftOverlap = overlap.first;
@@ -72,26 +76,24 @@ void TextBox::draw() {
             auto middleString = line.substr(leftOverlap, rightOverlap-leftOverlap);
             auto rightString = line.substr(rightOverlap);
 
-            float xAdvance = 0.0f;
-
             if (!leftString.empty()) {
-                ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x - xScroll, currentPosition.y - yScroll), m_textColor, leftString.c_str());
-                xAdvance += m_cursor->getXAdvance(leftString);
+                ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getTextColor(), leftString.c_str());
+                textPosition.x += m_cursor->getXAdvance(leftString);
             }
 
             auto secondStringAdvance = m_cursor->getXAdvance(middleString);
-            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x + xAdvance - xScroll, currentPosition.y - yScroll), ImVec2(currentPosition.x + xAdvance + secondStringAdvance, currentPosition.y + lineHeight), ImColor(20, 20, 150));
-            ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x + xAdvance - xScroll, currentPosition.y - yScroll), ImColor(255, 255, 255), middleString.c_str());
-            xAdvance += secondStringAdvance;
+            ImGui::GetWindowDrawList()->AddRectFilled(textPosition, ImVec2(textPosition.x + secondStringAdvance, textPosition.y + lineHeight), m_theme->getSelectColor());
+            ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getSelectTextColor(), middleString.c_str());
+            textPosition.x += secondStringAdvance;
 
 
             if (!rightString.empty()) {
-                ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x + xAdvance - xScroll, currentPosition.y - yScroll), m_textColor, rightString.c_str());
+                ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getTextColor(), rightString.c_str());
             }
 
         } else {
             // Draw the line text
-            ImGui::GetWindowDrawList()->AddText(ImVec2(currentPosition.x - xScroll, currentPosition.y - yScroll), m_textColor, line.c_str());
+            ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getTextColor(), line.c_str());
         }
 
         // Deactivate clip rectangle
@@ -101,16 +103,17 @@ void TextBox::draw() {
         currentPosition.y = currentPosition.y + ImGui::GetFontSize();
     }
 
-    float yOffset = currentPosition.y - cursorScreenPosition.y;
+    auto yOffset = currentPosition.y - cursorScreenPosition.y;
 
     if (yOffset < m_height) {
-      ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + (m_height - yOffset)), m_backgroundColor);
+      ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + (m_height - yOffset)), m_theme->getBackGroundColor());
     }
 
     if (m_cursor->getShouldRender())
         drawCursor();
     m_cursor->updateShouldRender();
 
+    drawScrollBars();
 
     ImGui::PopFont();
 }
@@ -294,6 +297,72 @@ void TextBox::mouseWheelScroll(bool shift, float &mouseWheel) {
         m_scroll->mouseWheelYScroll(mouseWheel);
 }
 
+void TextBox::horizontalScroll(ImVec2 &mousePosition, ImVec2 &delta) {
+    ImVec2 startPosition = ImVec2(mousePosition.x - delta.x, mousePosition.y - delta.y);
+
+    if (m_scroll->getMaxXScroll() != 0.0f && MyRectangle::isInsideRectangle(m_scroll->getHScrollSelectRect(), startPosition)) {
+        auto hScrollRect = m_scroll->getHScrollbarRect();
+        auto hSelectRect = m_scroll->getHScrollSelectRect();
+
+        auto hScrollWidth = hScrollRect.getBottomRight().x - hScrollRect.getTopLeft().x;
+        auto hSelectWidth = hSelectRect.getBottomRight().x - hSelectRect.getTopLeft().x;
+        auto width = hScrollWidth - hSelectWidth;
+
+        std::cerr << "Delta: " <<  delta.x << std::endl;
+        std::cerr << "Width: " << width << std::endl;
+
+        auto scrollIncrement = 0.5f * std::abs(delta.x) / width;
+        std::cerr << "scrollIncrement: " << scrollIncrement << std::endl;
+        auto maxXScroll = m_scroll->getMaxXScroll();
+
+        if (delta.x > 0.0f)
+            m_scroll->setXScroll(std::min(m_scroll->getXScroll() + scrollIncrement * maxXScroll, maxXScroll));
+        else
+            m_scroll->setXScroll(std::max(m_scroll->getXScroll() - scrollIncrement * maxXScroll, 0.0f));
+    }
+}
+
+void TextBox::verticalScroll(ImVec2& mousePosition, ImVec2& delta) {
+    ImVec2 startPosition = ImVec2(mousePosition.x - delta.x, mousePosition.y - delta.y);
+
+    if (m_scroll->getMaxYScroll() != 0.0f && MyRectangle::isInsideRectangle(m_scroll->getVScrollSelectRect(), startPosition)) {
+        auto vScrollRect = m_scroll->getVScrollbarRect();
+        auto vSelectRect = m_scroll->getVScrollSelectRect();
+
+        auto vScrollHeight = vScrollRect.getBottomRight().y - vScrollRect.getTopLeft().y;
+        auto vSelectHeight = vSelectRect.getBottomRight().y - vSelectRect.getTopLeft().y;
+        auto height = vScrollHeight - vSelectHeight;
+
+        auto scrollIncrement = std::abs(delta.y) / height;
+        auto maxYScroll = m_scroll->getMaxYScroll();
+
+        if (delta.y > 0.0f)
+            m_scroll->setYScroll(std::min(m_scroll->getYScroll() + scrollIncrement*maxYScroll, maxYScroll));
+        else
+            m_scroll->setYScroll(std::max(m_scroll->getYScroll() - scrollIncrement*maxYScroll, 0.0f));
+    }
+}
+
+void TextBox::horizontalBarClick(ImVec2 &mousePosition) {
+    auto offset = 30.0f;
+
+    if (MyRectangle::isRightOfRectangle(m_scroll->getHScrollSelectRect(), mousePosition)) {
+        m_scroll->setXScroll(std::min(m_scroll->getXScroll() + offset, m_scroll->getMaxXScroll()));
+    } else if (MyRectangle::isLeftOfRectangle(m_scroll->getHScrollSelectRect(), mousePosition)) {
+        m_scroll->setXScroll(std::max(m_scroll->getXScroll() - offset, 0.0f));
+    }
+}
+
+void TextBox::verticalBarClick(ImVec2 &mousePosition) {
+    auto offset = 30.0f;
+
+    if (MyRectangle::isBelowRectangle(m_scroll->getVScrollSelectRect(), mousePosition)) {
+        m_scroll->setYScroll(std::min(m_scroll->getYScroll() + offset, m_scroll->getMaxYScroll()));
+    } else if (MyRectangle::isAboveRectangle(m_scroll->getVScrollSelectRect(), mousePosition)) {
+        m_scroll->setYScroll(std::max(m_scroll->getYScroll() - offset, 0.0f));
+    }
+}
+
 void TextBox::increaseFontSize() {
     m_font->increaseSize();
     m_scroll->updateMaxScroll(m_width, m_height);
@@ -304,30 +373,31 @@ void TextBox::decreaseFontSize() {
     m_scroll->updateMaxScroll(m_width, m_height);
 }
 
-ImColor TextBox::getTextColor() const { return m_textColor; }
-
-ImColor TextBox::getBackgroundColor() const { return m_backgroundColor; }
-
 float TextBox::getWidth() const { return m_width; }
 
 float TextBox::getHeight() const { return m_height; }
 
+const MyRectangle &TextBox::getHScrollbarRect() const { return m_scroll->getHScrollbarRect(); }
+
+const MyRectangle &TextBox::getVScrollbarRect() const { return m_scroll->getVScrollbarRect(); }
+
+float TextBox::getScrollbarSize() const { return m_scrollbarSize; }
+
 Cursor *TextBox::getCursor() const { return m_cursor; }
-
-void TextBox::setTextColor(ImColor textColor) { m_textColor = textColor; }
-
-void TextBox::setBackgroundColor(ImColor backgroundColor) { m_backgroundColor = backgroundColor; }
 
 void TextBox::setWidth(float width) { m_width = width; }
 
 void TextBox::setHeight(float height) { m_height = height; }
 
-inline void TextBox::drawRectangle(ImVec2 currentPosition, float lineHeight) {
+inline void TextBox::drawRectangle(ImVec2 currentPosition, float& lineHeight) {
+    auto screenPosition = ImGui::GetCursorScreenPos();
+    auto topLeft = currentPosition;
+    auto bottomRight = ImVec2(topLeft.x + m_width, topLeft.y + lineHeight);
+
     // Add a clip rectangle
-    ImGui::GetWindowDrawList()->PushClipRect(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight));
+    ImGui::GetWindowDrawList()->PushClipRect(screenPosition, ImVec2(screenPosition.x + m_width, screenPosition.y + m_height));
     // Draw the background rectangle
-    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + lineHeight),
-                                              m_backgroundColor);
+    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getBackGroundColor());
     // Deactivate clip rectangle
     ImGui::GetWindowDrawList()->PopClipRect();
 }
@@ -335,12 +405,79 @@ inline void TextBox::drawRectangle(ImVec2 currentPosition, float lineHeight) {
 void TextBox::drawCursor() {
     m_cursor->calculateWidth();
 
-    auto cursorPosition = m_cursor->getCursorPosition(ImGui::GetCursorScreenPos());
+    auto topLeft = m_cursor->getCursorPosition(ImGui::GetCursorScreenPos());
+    topLeft.x -= m_scroll->getXScroll();
+    topLeft.y -= m_scroll->getYScroll();
 
-    cursorPosition.x -= m_scroll->getXScroll();
-    cursorPosition.y -= m_scroll->getYScroll();
+    auto bottomRight = ImVec2(topLeft.x + m_cursor->getWidth(), topLeft.y + ImGui::GetFontSize());
 
-    ImGui::GetWindowDrawList()->AddRectFilled(cursorPosition, ImVec2(cursorPosition.x + m_cursor->getWidth(), cursorPosition.y + ImGui::GetFontSize()), ImColor(255, 0, 0));
+    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getCursorColor());
+}
+
+void TextBox::drawScrollBars() {
+    drawHorizontalScrollBar();
+    drawVerticalScrollBar();
+    auto screenPosition = ImGui::GetCursorScreenPos();
+    auto topLeft = ImVec2(screenPosition.x + m_width, screenPosition.y + m_height);
+    auto bottomRight = ImVec2(topLeft.x + m_scrollbarSize, topLeft.y + m_scrollbarSize);
+    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getScrollbarPrimaryColor());
+}
+
+void TextBox::drawHorizontalScrollBar() {
+    auto screenPosition = ImGui::GetCursorScreenPos();
+    auto topLeft = ImVec2(screenPosition.x + m_scrollbarSize, screenPosition.y + m_height);
+    auto bottomRight = ImVec2(topLeft.x + m_width - m_scrollbarSize, topLeft.y + m_scrollbarSize);
+    m_scroll->setHScrollbarRect(MyRectangle(topLeft, bottomRight));
+
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x - m_scrollbarSize, topLeft.y), ImVec2(bottomRight.x + m_scrollbarSize, bottomRight.y), m_theme->getScrollbarPrimaryColor());
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y), ImVec2(bottomRight.x , bottomRight.y), m_theme->getScrollbarSecondaryColor());
+
+    auto maxXScroll = m_scroll->getMaxXScroll();
+
+    if (maxXScroll != 0.0f) {
+        auto xScroll = m_scroll->getXScroll();
+        auto percentVisible = m_width / (m_width + maxXScroll);
+        auto scrollBarWidth = m_width - 2 * m_scrollbarSize;
+
+        auto scrollSelectSize = std::max(scrollBarWidth*percentVisible, m_minScrollSelectSize);
+        auto scrollBarOffset = (scrollBarWidth - scrollSelectSize) * (xScroll / maxXScroll);
+
+        auto topLeftScrollSelect = ImVec2(topLeft.x + scrollBarOffset, topLeft.y);
+        auto bottomRightScrollSelect = ImVec2(topLeftScrollSelect.x + scrollSelectSize + m_scrollbarSize, topLeftScrollSelect.y + m_scrollbarSize);
+
+        m_scroll->setHScrollSelectRect(MyRectangle(topLeftScrollSelect, bottomRightScrollSelect));
+
+        ImGui::GetWindowDrawList()->AddRectFilled(topLeftScrollSelect, bottomRightScrollSelect, m_theme->getScrollbarPrimaryColor());
+    }
+}
+
+void TextBox::drawVerticalScrollBar() {
+    auto screenPosition = ImGui::GetCursorScreenPos();
+    auto topLeft = ImVec2(screenPosition.x + m_width, screenPosition.y + m_scrollbarSize);
+    auto bottomRight = ImVec2(topLeft.x + m_scrollbarSize, topLeft.y + m_height - m_scrollbarSize);
+
+    m_scroll->setVScrollbarRect(MyRectangle(topLeft, bottomRight));
+
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y - m_scrollbarSize), ImVec2(bottomRight.x, bottomRight.y + m_scrollbarSize), m_theme->getScrollbarPrimaryColor());
+    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getScrollbarSecondaryColor());
+
+    auto maxYScroll = m_scroll->getMaxYScroll();
+
+    if (maxYScroll != 0.0f) {
+        auto yScroll = m_scroll->getYScroll();
+        auto percentVisible = m_height / (m_height + maxYScroll);
+        auto scrollBarHeight = m_height - 2 * m_scrollbarSize;
+
+        auto scrollSelectSize = std::max(scrollBarHeight*percentVisible, m_minScrollSelectSize);
+        auto scrollBarOffset = (scrollBarHeight - scrollSelectSize) * (yScroll / maxYScroll);
+
+        auto topLeftScrollSelect = ImVec2(topLeft.x, topLeft.y + scrollBarOffset);
+        auto bottomRightScrollSelect = ImVec2(topLeftScrollSelect.x + m_scrollbarSize, topLeftScrollSelect.y + scrollSelectSize + m_scrollbarSize);
+
+        m_scroll->setVScrollSelectRect(MyRectangle(topLeftScrollSelect, bottomRightScrollSelect));
+
+        ImGui::GetWindowDrawList()->AddRectFilled(topLeftScrollSelect, bottomRightScrollSelect, m_theme->getScrollbarPrimaryColor());
+    }
 }
 
 
@@ -348,8 +485,8 @@ void TextBox::updateTextBoxSize() {
     bool changedWidth = false;
     bool changedHeight = false;
 
-    auto newWidth = ImGui::GetWindowWidth() - m_margin;
-    auto newHeight = ImGui::GetWindowHeight() - m_margin;
+    auto newWidth = ImGui::GetWindowWidth() - m_xMargin;
+    auto newHeight = ImGui::GetWindowHeight() - m_yMargin;
 
     if (m_width != newWidth) {
         m_width = newWidth;
@@ -411,6 +548,8 @@ TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosit
 
     return TextCoordinates(row+1, column);
 }
+
+
 
 
 

@@ -6,20 +6,24 @@
 #define TEXT_EDITOR_TEXTBOX_H
 
 #include "imgui.h"
-#include "../PieceTable/PieceTable.h"
-#include "LineBuffer.h"
+
 #include "Cursor.h"
 #include "Font.h"
+#include "LineBuffer.h"
+#include "MyRectangle.h"
+#include "../PieceTable/PieceTable.h"
 #include "Selection.h"
 #include "Scroll.h"
+#include "Theme.h"
+
 #include <string>
 #include <iostream>
 #include <sstream>
 
 class TextBox {
 public:
-    TextBox(ImColor textColor = ImColor(0, 0, 0), ImColor backgroundColor = ImColor(255, 255, 255),
-            float width = 200.0f, float height = 400.0f, std::string fontName = "Consolas");
+    TextBox(float width = 200.0f, float height = 400.0f,
+            std::string fontName = "Consolas", std::string theme = "Light");
     ~TextBox();
 
     void draw();
@@ -27,7 +31,6 @@ public:
     void enterChar(std::string str);
     void backspace();
     void deleteChar();
-
     void selectAll();
 
     void moveCursorRight(bool shift);
@@ -40,45 +43,49 @@ public:
     void moveCursorToMousePosition(ImVec2& mousePosition);
     void setMouseSelection(ImVec2& endPosition, ImVec2& delta);
     void mouseWheelScroll(bool shift, float& mouseWheel);
+    void horizontalScroll(ImVec2& mousePosition, ImVec2& delta);
+    void verticalScroll(ImVec2& mousePosition, ImVec2& delta);
+    void horizontalBarClick(ImVec2& mousePosition);
+    void verticalBarClick(ImVec2& mousePosition);
 
     void increaseFontSize();
     void decreaseFontSize();
 
-    ImColor getTextColor() const;
-    ImColor getBackgroundColor() const;
     float getWidth() const;
     float getHeight() const;
+    const MyRectangle& getHScrollbarRect() const;
+    const MyRectangle& getVScrollbarRect() const;
+    float getScrollbarSize() const;
     Cursor* getCursor() const;
 
-    void setBackgroundColor(ImColor backgroundColor);
-    void setTextColor(ImColor textColor);
     void setWidth(float width);
     void setHeight(float height);
 private:
     bool deleteSelection();
     TextCoordinates mousePositionToTextCoordinates(const ImVec2& mousePosition);
 
-    void drawRectangle(ImVec2 currentPosition, float lineHeight);
+    void drawRectangle(ImVec2 currentPosition, float& lineHeight);
+    void drawText();
     void drawCursor();
+    void drawScrollBars();
+    void drawHorizontalScrollBar();
+    void drawVerticalScrollBar();
+
     void updateTextBoxSize();
-
-
-    void updateMaxXScroll();
-    void updateMaxYScroll();
-
 private:
     PieceTable* m_pieceTable;
     LineBuffer* m_lineBuffer;
     Cursor* m_cursor;
     Selection* m_selection;
     Scroll* m_scroll;
+    Font* m_font;
+    Theme* m_theme;
     float m_width;
     float m_height;
-
-    const float m_margin = 20.0f;
-    ImColor m_backgroundColor;
-    ImColor m_textColor;
-    Font* m_font;
+    const float m_scrollbarSize = 15.0f;
+    const float m_minScrollSelectSize = 20.0f;
+    const float m_xMargin = 30.0f;
+    const float m_yMargin = 30.0f;
 };
 
 
