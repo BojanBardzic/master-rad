@@ -16,9 +16,10 @@ public:
 
     void getLines();
     size_t textCoordinatesToBufferIndex(const TextCoordinates& coords);
+    TextCoordinates bufferIndexToTextCoordinates(const size_t& index);
 
     std::string& lineAt(size_t index) const;
-    size_t getSize() const;
+    const size_t getSize() const;
     bool isEmpty() const;
 
 private:

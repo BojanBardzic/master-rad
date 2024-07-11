@@ -25,7 +25,7 @@ void Scroll::updateXScroll(float &width) {
 
     if (advance != 0.0f && advance - m_xScroll > width) {
         m_xScroll = advance - width;
-    } else if (advance != 0.0f && advance < m_xScroll) {
+    } else if (advance != 0.0f && advance <= m_xScroll) {
         m_xScroll = advance - ImGui::GetFont()->GetCharAdvance(m_lineBuffer->lineAt(cursorRow-1)[cursorCol-1]);
     } else if (advance == 0.0f) {
         std::cerr << "setting scroll to 0" << std::endl;
@@ -61,7 +61,6 @@ void Scroll::updateMaxScroll(float& width, float& height) {
 
 void Scroll::updateMaxXScroll(float& width) {
     ImGui::PushFont(m_font->getFont());
-    std::cerr << "Entered MaxXScroll" << std::endl;
     float maxAdvance = 0.0f;
 
     for (size_t i=0; i<m_lineBuffer->getSize(); ++i) {
@@ -71,7 +70,6 @@ void Scroll::updateMaxXScroll(float& width) {
     }
 
     m_maxXScroll = std::max(0.0f, maxAdvance-width);
-    std::cerr << "Exited MaxXScroll" << std::endl;
     ImGui::PopFont();
 }
 
@@ -122,23 +120,23 @@ void Scroll::init(float& width, float& height) {
 
 bool Scroll::isInit() const { return m_init; }
 
-float Scroll::getXScroll() const { return m_xScroll; }
+const float& Scroll::getXScroll() const { return m_xScroll; }
 
-float Scroll::getYScroll() const { return m_yScroll; }
+const float& Scroll::getYScroll() const { return m_yScroll; }
 
-float Scroll::getMaxXScroll() const { return m_maxXScroll; }
+const float& Scroll::getMaxXScroll() const { return m_maxXScroll; }
 
-float Scroll::getMaxYScroll() const { return m_maxYScroll; }
+const float& Scroll::getMaxYScroll() const { return m_maxYScroll; }
 
-const MyRectangle &Scroll::getHScrollbarRect() const { return m_hScrollbarRect; }
+const MyRectangle& Scroll::getHScrollbarRect() const { return m_hScrollbarRect; }
 
-const MyRectangle &Scroll::getVScrollbarRect() const { return m_vScrollbarRect; }
+const MyRectangle& Scroll::getVScrollbarRect() const { return m_vScrollbarRect; }
 
-const MyRectangle &Scroll::getHScrollSelectRect() const { return m_hScrollSelectRect; }
+const MyRectangle& Scroll::getHScrollSelectRect() const { return m_hScrollSelectRect; }
 
-const MyRectangle &Scroll::getVScrollSelectRect() const { return m_vScrollSelectRect; }
+const MyRectangle& Scroll::getVScrollSelectRect() const { return m_vScrollSelectRect; }
 
-void Scroll::setXScroll(const float &xScroll) { m_xScroll = xScroll; }
+void Scroll::setXScroll(const float& xScroll) { m_xScroll = xScroll; }
 
 void Scroll::setYScroll(const float& yScroll) { m_yScroll = yScroll; }
 

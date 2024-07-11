@@ -40,6 +40,12 @@ void InputHandler::handleKeyboardInput() {
             m_textBox->decreaseFontSize();
         } else if (ctrl && isKeyPressed(ImGuiKey_A)) {
             m_textBox->selectAll();
+        } else if (ctrl && isKeyPressed(ImGuiKey_X)) {
+            m_textBox->cut();
+        } else if (ctrl && isKeyPressed(ImGuiKey_C)) {
+            m_textBox->copy();
+        } else if (ctrl && isKeyPressed(ImGuiKey_V)) {
+            m_textBox->paste();
         }
 
         if (!io.InputQueueCharacters.empty()) {

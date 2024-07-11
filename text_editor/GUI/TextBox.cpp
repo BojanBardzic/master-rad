@@ -122,11 +122,24 @@ void TextBox::draw() {
 void TextBox::enterChar(std::string str) {
     deleteSelection();
 
+    auto size = str.size();
     auto coords = m_cursor->getCoords();
     size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
     m_pieceTable->insert(std::move(str), index);
     m_lineBuffer->getLines();
-    m_cursor->moveRight();
+
+    if (size == 1) {
+        m_cursor->moveRight();
+    } else {
+        std::cerr << "index: " << index << std::endl;
+        std::cerr << "size: " << size << std::endl;
+        auto newCoords = m_lineBuffer->bufferIndexToTextCoordinates(index + size);
+        m_cursor->setCoords(newCoords);
+    }
+
+    std::cerr << "Moved cursor" << std::endl;
+
+    //m_cursor->moveRight();
     m_scroll->updateScroll(m_width, m_height);
     m_scroll->updateMaxScroll(m_width, m_height);
 }
@@ -168,6 +181,24 @@ void TextBox::selectAll() {
     m_cursor->moveToEndOfFile();
     auto newCoords = m_cursor->getCoords();
     m_selection->selectAll(newCoords);
+}
+
+void TextBox::cut() {
+    if (m_selection->getActive()) {
+        copySelectionToClipboard();
+        deleteSelection();
+    }
+}
+
+void TextBox::copy() {
+    if (m_selection->getActive()) {
+        copySelectionToClipboard();
+    }
+}
+
+void TextBox::paste() {
+    auto text = std::string(ImGui::GetClipboardText());
+    enterChar(text);
 }
 
 void TextBox::moveCursorRight(bool shift) {
@@ -520,6 +551,11 @@ bool TextBox::deleteSelection() {
     m_selection->setActive(false);
 
     return true;
+}
+
+void TextBox::copySelectionToClipboard() {
+    auto selectionText = m_selection->getSelectionText();
+    ImGui::SetClipboardText(selectionText.c_str());
 }
 
 TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosition) {

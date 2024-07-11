@@ -32,6 +32,9 @@ public:
     void backspace();
     void deleteChar();
     void selectAll();
+    void cut();
+    void copy();
+    void paste();
 
     void moveCursorRight(bool shift);
     void moveCursorLeft(bool shift);
@@ -62,6 +65,7 @@ public:
     void setHeight(float height);
 private:
     bool deleteSelection();
+    void copySelectionToClipboard();
     TextCoordinates mousePositionToTextCoordinates(const ImVec2& mousePosition);
 
     void drawRectangle(ImVec2 currentPosition, float& lineHeight);

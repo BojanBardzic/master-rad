@@ -58,7 +58,28 @@ size_t LineBuffer::textCoordinatesToBufferIndex(const TextCoordinates &coords) {
     return index;
 }
 
-std::string &LineBuffer::lineAt(size_t index) const {
+TextCoordinates LineBuffer::bufferIndexToTextCoordinates(const size_t& index) {
+    size_t row = 1;
+    size_t col = 1;
+
+    if (isEmpty())
+        return {row, col};
+
+    size_t acc = 0;
+    while (row-1 < m_lines->size() && acc + m_lines->at(row-1).size() < index) {
+        acc += m_lines->at(row-1).size() + 1;
+        ++row;
+    }
+
+    col += index - acc;
+
+    std::cerr << "row: " << row << std::endl;
+    std::cerr << "col: " << col << std::endl;
+
+    return {row, col};
+}
+
+std::string& LineBuffer::lineAt(size_t index) const {
     if (index < m_lines->size()) {
         return m_lines->at(index);
     } else {
@@ -66,7 +87,7 @@ std::string &LineBuffer::lineAt(size_t index) const {
     }
 }
 
-size_t LineBuffer::getSize() const { return m_lines->size(); }
+const size_t LineBuffer::getSize() const { return m_lines->size(); }
 
 bool LineBuffer::isEmpty() const { return m_lines->empty(); }
 

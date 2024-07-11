@@ -73,37 +73,35 @@ void Cursor::moveToEndOfFile() {
 
 // Calculates the x-axis advancement of the substring of the line at cursorRow-1
 // between [0, cursorCol)
-float Cursor::getXAdvance() const {
+const float Cursor::getXAdvance() const {
     float advance = 0.0f;
     auto line = m_lineBuffer->lineAt(m_coord.m_row-1);
-
-    if (m_coord.m_col == 1)
-        return 0.0f;
 
     for (size_t i = 0; i<m_coord.m_col; ++i) {
         advance += ImGui::GetFont()->GetCharAdvance(line[i]);
     }
+    std::cerr << std::endl;
 
     return advance;
 }
 
-size_t Cursor::getRow() const { return m_coord.m_row; }
+const size_t& Cursor::getRow() const { return m_coord.m_row; }
 
-size_t Cursor::getCol() const { return m_coord.m_col; }
+const size_t& Cursor::getCol() const { return m_coord.m_col; }
 
-TextCoordinates Cursor::getCoords() const { return m_coord; }
+const TextCoordinates& Cursor::getCoords() const { return m_coord; }
 
-float Cursor::getWidth() const { return m_width; }
+const float& Cursor::getWidth() const { return m_width; }
 
 bool Cursor::getShouldRender() const { return m_shouldRender; }
 
-void Cursor::setRow(size_t row) {
+void Cursor::setRow(const size_t& row) {
     m_shouldRender = true;
     if (row != 0)
         m_coord.m_row = row;
 }
 
-void Cursor::setCol(size_t col) {
+void Cursor::setCol(const size_t& col) {
     m_shouldRender = true;
     if (col != 0)
         m_coord.m_col = col;
@@ -111,9 +109,9 @@ void Cursor::setCol(size_t col) {
 
 void Cursor::setCoords(const TextCoordinates &coords) { m_coord = coords; }
 
-void Cursor::setWidth(float width) { m_width = width; }
+void Cursor::setWidth(const float& width) { m_width = width; }
 
-ImVec2 Cursor::getCursorPosition(ImVec2 cursorScreenPosition) {
+ImVec2 Cursor::getCursorPosition(const ImVec2& cursorScreenPosition) {
     auto xOffset = 0.0f;
     auto yOffset = (m_coord.m_row - 1) * ImGui::GetFontSize();
 
@@ -141,7 +139,7 @@ void Cursor::updateShouldRender() {
     }
 }
 
-float Cursor::getXAdvance(std::string& str) {
+float Cursor::getXAdvance(const std::string& str) {
     float advance = 0.0f;
 
     for (const char& c : str) {

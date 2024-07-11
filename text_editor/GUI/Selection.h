@@ -16,13 +16,15 @@ public:
     void update(TextCoordinates& oldCoords, TextCoordinates& newCoords);
     void selectAll(TextCoordinates& newCoords);
 
+    std::string getSelectionText();
+
     bool getActive() const;
     const TextCoordinates& getStart() const;
     const TextCoordinates& getEnd() const;
 
     void setActive(bool active);
-    void setStart(TextCoordinates coords);
-    void setEnd(TextCoordinates coords);
+    void setStart(const TextCoordinates& coords);
+    void setEnd(const TextCoordinates& coords);
 
     std::pair<size_t, size_t> getIntersectionWithLine(size_t lineIndex);
 private:

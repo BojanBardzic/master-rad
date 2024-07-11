@@ -37,9 +37,9 @@ const TextCoordinates& Selection::getEnd() const { return m_end; }
 
 void Selection::setActive(bool active) { m_active = active; }
 
-void Selection::setStart(TextCoordinates coords) { m_start = coords; }
+void Selection::setStart(const TextCoordinates& coords) { m_start = coords; }
 
-void Selection::setEnd(TextCoordinates coords) { m_end = coords; }
+void Selection::setEnd(const TextCoordinates& coords) { m_end = coords; }
 
 std::pair<size_t, size_t> Selection::getIntersectionWithLine(size_t lineIndex) {
     if (m_lineBuffer->isEmpty())
@@ -69,6 +69,29 @@ void Selection::selectAll(TextCoordinates& newCoords) {
     m_start.m_row = 1;
     m_start.m_col = 1;
     m_end = newCoords;
+}
+
+std::string Selection::getSelectionText() {
+    std::string result;
+    TextCoordinates it = m_start;
+
+    std::string* line = &m_lineBuffer->lineAt(it.m_row-1);
+
+    while (it < m_end) {
+        if (it.m_col > line->size()) {
+            result += '\n';
+            it.m_row += 1;
+            it.m_col = 1;
+            line = &m_lineBuffer->lineAt(it.m_row-1);
+        } else {
+            if (!line->empty())
+                result.push_back(line->at(it.m_col-1));
+
+            it.m_col += 1;
+        }
+    }
+
+    return result;
 }
 
 

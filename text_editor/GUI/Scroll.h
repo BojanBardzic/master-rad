@@ -28,10 +28,10 @@ public:
     void init(float& width, float& height);
 
     bool isInit() const;
-    float getXScroll() const;
-    float getYScroll() const;
-    float getMaxXScroll() const;
-    float getMaxYScroll() const;
+    const float& getXScroll() const;
+    const float& getYScroll() const;
+    const float& getMaxXScroll() const;
+    const float& getMaxYScroll() const;
     const MyRectangle& getHScrollbarRect() const;
     const MyRectangle& getVScrollbarRect() const;
     const MyRectangle& getHScrollSelectRect() const;
@@ -39,10 +39,10 @@ public:
 
     void setXScroll(const float& xScroll);
     void setYScroll(const float& yScroll);
-    void setHScrollbarRect(const MyRectangle &hScrollbarRect);
-    void setVScrollbarRect(const MyRectangle &vScrollbarRect);
-    void setHScrollSelectRect(const MyRectangle &hScrollSelectRect);
-    void setVScrollSelectRect(const MyRectangle &vScrollSelectRect);
+    void setHScrollbarRect(const MyRectangle& hScrollbarRect);
+    void setVScrollbarRect(const MyRectangle& vScrollbarRect);
+    void setHScrollSelectRect(const MyRectangle& hScrollSelectRect);
+    void setVScrollSelectRect(const MyRectangle& vScrollSelectRect);
 private:
     LineBuffer* m_lineBuffer;
     Cursor* m_cursor;

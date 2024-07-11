@@ -25,24 +25,24 @@ public:
     void moveToEnd();
     void moveToEndOfFile();
 
-    float getXAdvance() const;
+    const float getXAdvance() const;
 
-    size_t getRow() const;
-    size_t getCol() const;
-    TextCoordinates getCoords() const;
-    float getWidth() const;
+    const size_t& getRow() const;
+    const size_t& getCol() const;
+    const TextCoordinates& getCoords() const;
+    const float& getWidth() const;
     bool getShouldRender() const;
 
-    void setWidth(float width);
-    void setRow(size_t row);
-    void setCol(size_t col);
+    void setWidth(const float& width);
+    void setRow(const size_t& row);
+    void setCol(const size_t& col);
     void setCoords(const TextCoordinates& coords);
 
     void calculateWidth();
     void updateShouldRender();
 
-    ImVec2 getCursorPosition(ImVec2 cursorScreenPosition);
-    float getXAdvance(std::string& str);
+    ImVec2 getCursorPosition(const ImVec2& cursorScreenPosition);
+    float getXAdvance(const std::string& str);
 private:
     void resetTimer();
     void correctColumn();

@@ -24,9 +24,9 @@ void Font::decreaseSize() {
     }
 }
 
-std::string Font::getName() const { return m_name; }
+const std::string& Font::getName() const { return m_name; }
 
-float Font::getSize() const { return m_size; }
+const float& Font::getSize() const { return m_size; }
 
 ImFont *Font::getFont() const { return m_font; }
 

@@ -17,8 +17,8 @@ public:
     void increaseSize();
     void decreaseSize();
 
-    std::string getName() const;
-    float getSize() const;
+    const std::string& getName() const;
+    const float& getSize() const;
     ImFont* getFont() const;
 private:
     void loadFont();
