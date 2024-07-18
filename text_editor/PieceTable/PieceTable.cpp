@@ -5,19 +5,98 @@
 #include "PieceTable.h"
 
 std::ostream& operator<<(std::ostream& out, const PieceTable& table) {
-//    out << "PIECES SIZE: " << table.m_pieces.size() << std::endl;
-//
-//    for (auto piece : table.m_pieces) {
-//        out << *piece << std::endl;
-//    }
+    bool shouldPrintInsertBuffer = !table.m_insertBuffer->isFlushed();
+    bool shouldPrintDeleteBuffer = !table.m_deleteBuffer->isFlushed();
 
-    for (auto piece : table.m_pieces) {
-        if (piece->getSource() == SourceType::Original) {
-            out << table.m_originalBuffer->substr(piece->getStart(), piece->getLength());
-        } else {
-            out << table.m_addBuffer->substr(piece->getStart(), piece->getLength());
-        }
+    size_t current_index = 0;
+
+    if (table.m_pieces.empty() && !table.m_insertBuffer->isFlushed()) {
+        out << table.m_insertBuffer->getContent();
+        shouldPrintInsertBuffer = false;
     }
+
+    auto pieceIt = table.m_pieces.begin();
+    while (pieceIt != table.m_pieces.end()) {
+        auto piece = *pieceIt;
+
+        std::string* buffer = piece->getSource() == SourceType::Original ? table.m_originalBuffer : table.m_addBuffer;
+
+        if (shouldPrintInsertBuffer && PieceTable::isInsidePiece(table.m_insertBuffer->getStartIndex(), current_index, piece->getLength())) {
+            auto leftStringLen = table.m_insertBuffer->getStartIndex() - current_index;
+
+            out << buffer->substr(piece->getStart(), leftStringLen);
+            out << table.m_insertBuffer->getContent();
+            out << buffer->substr(piece->getStart() + leftStringLen, piece->getLength() - leftStringLen);
+
+            shouldPrintInsertBuffer = false;
+        } else if (shouldPrintDeleteBuffer && PieceTable::isInsidePiece(table.m_deleteBuffer->getStartIndex(), current_index, piece->getLength())) {
+            std::cerr << "Printing delete buffer" << std::endl;
+            std::cerr << "Piece" << *piece << std::endl;
+            std::cerr << "Current index: " << current_index << std::endl;
+            auto deleteBufferStart = table.m_deleteBuffer->getStartIndex();
+            auto deleteBufferEnd = table.m_deleteBuffer->getEndIndex();
+
+            std::cerr << "start: " << deleteBufferStart << std::endl;
+            std::cerr << "end: " << deleteBufferEnd << std::endl;
+
+            if (deleteBufferStart == current_index && deleteBufferEnd == current_index + piece->getLength()) {
+                std::cerr << "Doing nothing" << std::endl;
+                // Do nothing
+            } else if (deleteBufferStart >= current_index && deleteBufferEnd <= current_index + piece->getLength()) {
+                std::cerr << "Deleting in-between" << std::endl;
+
+                auto leftStringLen = deleteBufferStart - current_index;
+                auto deleteLen = deleteBufferEnd - deleteBufferStart;
+                auto rightStringLen = piece->getLength() - deleteLen - leftStringLen;
+                auto rightOffset = std::min(leftStringLen + deleteLen, piece->getLength()-1);
+
+                out << buffer->substr(piece->getStart(), leftStringLen);
+                out << buffer->substr(piece->getStart() + rightOffset, rightStringLen);
+            } else {
+                std::cerr << "Deleting across multiple pieces" << std::endl;
+
+                auto leftLen = table.m_deleteBuffer->getStartIndex() - current_index;
+                std::cerr << "left len: " << leftLen << std::endl;
+
+                out << buffer->substr(piece->getStart(), leftLen);
+
+
+                while (pieceIt != table.m_pieces.end() && !PieceTable::isInsidePieceInclusive(table.m_deleteBuffer->getEndIndex(), current_index, piece->getLength())) {
+                    std::cerr << "Iterating over piece" << std::endl;
+                    current_index += piece->getLength();
+                    pieceIt = std::next(pieceIt);
+                    piece = pieceIt == table.m_pieces.end() ? nullptr : *pieceIt;
+                }
+
+                if (pieceIt == table.m_pieces.end()) {
+                    std::cerr << "Reached end, breaking out of loop" << std::endl;
+                    break;
+                }
+
+                piece = *pieceIt;
+                std::cerr << "Piece: " << *piece << std::endl;
+
+                auto rightOffset = table.m_deleteBuffer->getEndIndex() - current_index;
+                std::cerr << "right offset: " << rightOffset << std::endl;
+
+                out << buffer->substr(piece->getStart() + rightOffset, piece->getLength() - rightOffset);
+            }
+
+            shouldPrintDeleteBuffer = false;
+        } else {
+            std::cerr << "Printing whole: " << buffer->substr(piece->getStart(), piece->getLength()) << std::endl;
+            out << buffer->substr(piece->getStart(), piece->getLength());
+        }
+
+        current_index += piece->getLength();
+        pieceIt = std::next(pieceIt);
+    }
+
+    if (shouldPrintInsertBuffer) {
+        out << table.m_insertBuffer->getContent();
+    }
+
+    std::cerr << "EXITED PRINTING" << std::endl;
 
     return out;
 }
@@ -25,11 +104,15 @@ std::ostream& operator<<(std::ostream& out, const PieceTable& table) {
 PieceTable::PieceTable() : m_size(0) {
     m_originalBuffer = new std::string("");
     m_addBuffer = new std::string("");
+    m_insertBuffer = new InsertBuffer();
+    m_deleteBuffer = new DeleteBuffer();
 }
 
 PieceTable::PieceTable(std::string& filename) {
     m_originalBuffer = new std::string("");
     m_addBuffer = new std::string("");
+    m_insertBuffer = new InsertBuffer();
+    m_deleteBuffer = new DeleteBuffer();
 
     std::ifstream input(filename);
 
@@ -43,23 +126,38 @@ PieceTable::PieceTable(std::string& filename) {
 PieceTable::~PieceTable() {
     delete m_originalBuffer;
     delete m_addBuffer;
+    delete m_insertBuffer;
+    delete m_deleteBuffer;
 
     for (auto piece : m_pieces)
         delete piece;
 
-    while (!m_undoStack.empty()) {
-        delete m_undoStack.top();
-        m_undoStack.pop();
-    }
-
-    while (!m_redoStack.empty()) {
-        delete m_redoStack.top();
-        m_redoStack.pop();
-    }
+    clearUndoStack();
+    clearRedoStack();
 }
 
-void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size_t index, bool undoRedo) {
 
+// Inserts char to add buffer, returns if the buffer has been initialized
+bool PieceTable::insertChar(char c, size_t index) {
+    if (index != m_insertBuffer->getEndIndex()) {
+        flushInsertBuffer();
+    }
+
+    bool result = false;
+
+    if (m_insertBuffer->isFlushed()) {
+        m_insertBuffer->setStartIndex(index);
+        m_insertBuffer->setEndIndex(index);
+        m_insertBuffer->setFlushed(false);
+        result = true;
+    }
+
+    m_insertBuffer->appendToContent(c);
+    return  result;
+}
+
+// Inserts text from the addBuffer into the pieceTable
+void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size_t index, bool undoRedo) {
     if (length == 0) {
         return;
     }
@@ -67,7 +165,7 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
     if (index > m_size)
         index = m_size;
 
-    PieceDescriptor* newPiece = new PieceDescriptor(sourceType, start, length);
+    auto newPiece = new PieceDescriptor(sourceType, start, length);
 
 
     if (index == 0) {
@@ -75,12 +173,14 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
     } else if (index == m_size) {
         auto endPiece = m_pieces.back();
 
+        // If the piece is on the end of the add buffer we just extend the current piece
         if (isPieceOnEndOffBuffer(endPiece)) {
             endPiece->setLength(endPiece->getLength() + length);
         } else {
             append(newPiece);
         }
     } else {
+        // Else we iterate through the pieces to find the correct index
         size_t currentIndex = 0;
         size_t i = 0;
         PieceDescriptor* previousPiece = nullptr;
@@ -88,7 +188,9 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
         for (auto piece : m_pieces) {
             auto pieceLength = piece->getLength();
 
+            // If the index is exactly between two pieces then we insert a new piece between them
             if (index == currentIndex) {
+                // If the piece is on the end of the buffer we append to the previous piece
                 if (isPieceOnEndOffBuffer(previousPiece)) {
                     previousPiece->setLength(previousPiece->getLength() + length);
                 } else {
@@ -97,7 +199,7 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
 
                 break;
             } else if (index > currentIndex && index < currentIndex + pieceLength) {
-                std::cerr << "Entered split piece case" << std::endl;
+                // If the inserting index is inside a piece we split it into two then add the new piece between them
                 auto [leftPiece, rightPiece] = PieceDescriptor::splitPiece(piece, index - currentIndex);
 
 
@@ -105,7 +207,7 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
 
                 insertPiece(leftPiece, i);
 
-                insertPiece(newPiece, i + 1);
+                insertPiece(newPiece, i+1);
 
                 insertPiece(rightPiece, i+2);
                 break;
@@ -126,10 +228,60 @@ void PieceTable::insert(std::string text, size_t index, bool undoRedo) {
     insertTextInBuffer(text);
 }
 
+bool PieceTable::backspace(size_t index) {
+    std::cerr << "Entered backspace" << std::endl;
+    if (index != m_deleteBuffer->getDeleteIndex()) {
+        flushDeleteBuffer();
+    }
+
+    bool result = false;
+
+    if (m_deleteBuffer->isFlushed()) {
+        m_deleteBuffer->setStartIndex(index);
+        m_deleteBuffer->setEndIndex(index);
+        m_deleteBuffer->setDeleteIndex(index);
+        m_deleteBuffer->setFlushed(false);
+        result = true;
+    }
+
+    if (m_deleteBuffer->getStartIndex() != 0)
+        m_deleteBuffer->setStartIndex(m_deleteBuffer->getStartIndex()-1);
+    if (index != 0)
+        m_deleteBuffer->setDeleteIndex(index-1);
+
+    return result;
+}
+
+bool PieceTable::charDelete(size_t index) {
+    std::cerr << "ENTERED CHAR DELETE!" << std::endl;
+
+    if (index != m_deleteBuffer->getDeleteIndex()) {
+        flushDeleteBuffer();
+    }
+
+    bool result = false;
+
+    if (m_deleteBuffer->isFlushed()) {
+        m_deleteBuffer->setDeleteIndex(index);
+        m_deleteBuffer->setStartIndex(index);
+        m_deleteBuffer->setEndIndex(index);
+        m_deleteBuffer->setFlushed(false);
+        result = true;
+    }
+
+    auto newIndex = std::min(m_deleteBuffer->getEndIndex()+1, getSize());
+    std::cerr << "END INDEX: " << m_deleteBuffer->getEndIndex() << std::endl;
+    std::cerr << "SIZE: " << getSize() << std::endl;
+    std::cerr << "NEW INDEX: " << newIndex << std::endl;
+    m_deleteBuffer->setEndIndex(newIndex);
+
+    return result;
+}
+
 
 // Deletes text from range [start, end)
 void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
-    if (start > end || start > m_size || m_pieces.empty())
+    if (start >= end || start >= m_size || m_pieces.empty())
         return;
 
     if (end > m_size)
@@ -142,7 +294,6 @@ void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
     std::vector<PieceDescriptor*> pieceDescriptors;
 
     for (auto piece : m_pieces) {
-        auto pieceStart = piece->getStart();
         auto pieceLength = piece->getLength();
 
         if (start == currentIndex && deleteLength == pieceLength) {
@@ -150,18 +301,19 @@ void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
             erasePiece(i);
 
             break;
-        } else if (start >= currentIndex && start < currentIndex + pieceLength && end < currentIndex + pieceLength) {
-            PieceDescriptor* deletePiece = nullptr;
+        } else if (start >= currentIndex && start < currentIndex + pieceLength && end <= currentIndex + pieceLength) {
+            PieceDescriptor* deletePiece;
 
             if (start == currentIndex) {
-                deletePiece = PieceDescriptor::cutoffFromLeft(piece, end - start);
-            } else if (end == currentIndex + pieceLength - 1) {
-                deletePiece = PieceDescriptor::cutoffFromRight(piece, end - start);
+                deletePiece = PieceDescriptor::cutoffFromLeft(piece, deleteLength);
+            } else if (end == currentIndex + pieceLength) {
+                deletePiece = PieceDescriptor::cutoffFromRight(piece, deleteLength);
             } else {
-                deletePiece = cutoffFromMiddle(piece, i, start - currentIndex, end - currentIndex);
+                deletePiece = cutoffFromMiddle(piece, i, start - currentIndex, pieceLength - (end - currentIndex));
             }
 
-            pieceDescriptors.push_back(deletePiece);
+            if (deletePiece != nullptr)
+                pieceDescriptors.push_back(deletePiece);
 
             break;
         } else if (start >= currentIndex && start < currentIndex + pieceLength) {
@@ -180,7 +332,9 @@ void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
                 toDelete.push_back(it);
             } else {
                 auto cutoffPiece = PieceDescriptor::cutoffFromRight(piece, cutoffLength);
-                pieceDescriptors.push_back(cutoffPiece);
+
+                if (cutoffPiece != nullptr)
+                    pieceDescriptors.push_back(cutoffPiece);
             }
 
             it = std::next(it);
@@ -190,13 +344,14 @@ void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
 
                 if (newCurrentIndex + itPiece->getLength() - 1 < end) {
                     toDelete.push_back(it);
-                    pieceDescriptors.push_back(itPiece);
+                    pieceDescriptors.push_back(new PieceDescriptor(itPiece));
                 } else {
                     auto offset = end - newCurrentIndex;
 
                     auto cutoffPiece = PieceDescriptor::cutoffFromLeft(itPiece, offset);
 
-                    pieceDescriptors.push_back(cutoffPiece);
+                    if (cutoffPiece != nullptr)
+                        pieceDescriptors.push_back(cutoffPiece);
 
                     break;
                 }
@@ -205,8 +360,8 @@ void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
                 it = std::next(it);
             }
 
-            for (size_t i=0; i<toDelete.size(); ++i) {
-                m_pieces.erase(toDelete[i]);
+            for (size_t j=0; j<toDelete.size(); ++j) {
+                m_pieces.erase(toDelete[j]);
             }
 
             break;
@@ -228,7 +383,39 @@ void PieceTable::redo() {
     reverseOperation(m_redoStack, m_undoStack);
 }
 
+bool PieceTable::flushInsertBuffer() {
+    if (!m_insertBuffer->isFlushed()) {
+        std::cerr << "Flushing buffer with index: " << m_insertBuffer->getStartIndex() << std::endl;
+        std::cerr << "Content: " << m_insertBuffer->getContent() << std::endl;
+        insert(m_insertBuffer->getContent(), m_insertBuffer->getStartIndex());
+        m_insertBuffer->clearContent();
+        m_insertBuffer->setFlushed(true);
+        return true;
+    }
+
+    return false;
+}
+
+bool PieceTable::flushDeleteBuffer() {
+    if (!m_deleteBuffer->isFlushed()) {
+        std::cerr << "Flushing delete buffer" << std::endl;
+        std::cerr << "Flushing delete from " << m_deleteBuffer->getStartIndex() << " to " << m_deleteBuffer->getEndIndex() << std::endl;
+        deleteText(m_deleteBuffer->getStartIndex(), m_deleteBuffer->getEndIndex());
+        m_deleteBuffer->setFlushed(true);
+        return true;
+    }
+
+    return false;
+}
+
+void PieceTable::clearUndoAndRedoStacks() {
+    clearUndoStack();
+    clearRedoStack();
+}
+
 size_t PieceTable::getSize() const { return m_size; }
+
+bool PieceTable::isRedoEmpty() const { return m_redoStack.empty(); }
 
 void PieceTable::append(PieceDescriptor* piece) {
     m_pieces.push_back(piece);
@@ -239,7 +426,6 @@ void PieceTable::prepend(PieceDescriptor* piece) {
 }
 
 inline void PieceTable::insertPiece(PieceDescriptor *piece, size_t index) {
-        std::cerr << "Inserting Piece" << std::endl;
         m_pieces.insert(std::next(m_pieces.begin(), index), piece);
 }
 
@@ -251,19 +437,26 @@ inline void PieceTable::erasePiece(size_t index) {
     delete ptr;
 }
 
-bool PieceTable::isPieceOnEndOffBuffer(PieceDescriptor *piece) {
-    if (piece->getSource() == SourceType::Add && piece->getStart() + piece->getLength() == m_addBuffer->size())
-        return true;
-    else
-        return false;
+bool PieceTable::isPieceOnEndOffBuffer(PieceDescriptor *piece) const {
+    return piece->getSource() == SourceType::Add && piece->getStart() + piece->getLength() == m_addBuffer->size();
+}
+
+bool PieceTable::isInsidePiece(const size_t &index, const size_t &currentIndex, const size_t &length) {
+    return index >= currentIndex && index < currentIndex + length;
+}
+
+bool PieceTable::isInsidePieceInclusive(const size_t& index, const size_t& currentIndex, const size_t& length) {
+    return index >= currentIndex && index <= currentIndex + length;
 }
 
 PieceDescriptor* PieceTable::cutoffFromMiddle(PieceDescriptor *piece, size_t index, size_t leftOffset, size_t rightOffset) {
     if (leftOffset > piece->getLength() || rightOffset > piece->getLength())
         return nullptr;
 
-    auto cutoffRightPiece = PieceDescriptor::cutoffFromRight(piece, piece->getLength() - leftOffset);
-    auto cutoffMiddlePiece = PieceDescriptor::cutoffFromLeft(cutoffRightPiece, rightOffset - leftOffset);
+    auto length = piece->getLength();
+
+    auto cutoffRightPiece = PieceDescriptor::cutoffFromRight(piece, length - leftOffset);
+    auto cutoffMiddlePiece = PieceDescriptor::cutoffFromLeft(cutoffRightPiece, length - rightOffset - leftOffset);
 
     insertPiece(cutoffRightPiece, index+1);
 
@@ -275,6 +468,7 @@ inline void PieceTable::insertTextInBuffer(std::string &text) {
 }
 
 void PieceTable::reverseOperation(std::stack<ActionDescriptor *> &stack, std::stack<ActionDescriptor *> &reverseStack) {
+    std::cerr << "ENTERED REVERSE OPERATION" << std::endl;
 
     if (stack.empty()) {
         std::cerr << "RETURNED" << std::endl;
@@ -289,27 +483,35 @@ void PieceTable::reverseOperation(std::stack<ActionDescriptor *> &stack, std::st
     auto index = action->getIndex();
     size_t totalLength = 0;
 
+    std::cerr << "Descriptors.size() = " << descriptors.size() << std::endl;
+
     if (actionType == ActionType::Insert) {
         std::cerr << "REVERSING INSERT" << std::endl;
 
-        for (size_t i=0; i<descriptors.size(); ++i) {
-            std::cerr << *descriptors[i] << std::endl;
-            totalLength += descriptors[i]->getLength();
-        }
+        totalLength = std::accumulate(descriptors.begin(), descriptors.end(), (size_t)0,
+                                      [](size_t acc, PieceDescriptor* descriptor) { return  acc + descriptor->getLength(); }
+                                      );
+
+
+        std::cerr << "Exited for loop" << std::endl;
 
         deleteText(index, index+totalLength, true);
     } else {
         std::cerr << "REVERSING DELETE" << std::endl;
 
         for (size_t i=0; i<descriptors.size(); ++i) {
+            std::cerr << "Entering iteration" << std::endl;
             auto source = descriptors[i]->getSource();
             auto start = descriptors[i]->getStart();
             auto length = descriptors[i]->getLength();
 
+            std::cerr << "Starting " << i << "th insert" << std::endl;
             insert(source, start, length, index + totalLength, true);
 
             totalLength += length;
         }
+
+        std::cerr << "Finishing reversing delete" << std::endl;
     }
 
     auto oppositeActionType = ActionDescriptor::getOppositeActionType(actionType);
@@ -321,8 +523,20 @@ void PieceTable::reverseOperation(std::stack<ActionDescriptor *> &stack, std::st
 
 void PieceTable::addToUndo(ActionDescriptor *actionDescriptor, bool undoRedo) {
     if (!undoRedo) {
-        //std::cerr << "ADDING TO UNDO: " << *actionDescriptor << std::endl;
         m_undoStack.push(actionDescriptor);
     }
 }
+
+void PieceTable::clearUndoStack() {
+    while (!m_undoStack.empty()) {
+        m_undoStack.pop();
+    }
+}
+
+void PieceTable::clearRedoStack() {
+    while (!m_redoStack.empty()) {
+        m_redoStack.pop();
+    }
+}
+
 

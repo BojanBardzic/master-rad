@@ -44,6 +44,8 @@ void LineBuffer::getLines() {
         //We jump over the newline char and iterate to the next.
         it = std::next(newLine);
     }
+
+    updateCharSize();
 }
 
 size_t LineBuffer::textCoordinatesToBufferIndex(const TextCoordinates &coords) {
@@ -73,22 +75,27 @@ TextCoordinates LineBuffer::bufferIndexToTextCoordinates(const size_t& index) {
 
     col += index - acc;
 
-    std::cerr << "row: " << row << std::endl;
-    std::cerr << "col: " << col << std::endl;
-
     return {row, col};
 }
 
 std::string& LineBuffer::lineAt(size_t index) const {
-    if (index < m_lines->size()) {
+    if (index >= 0 && index < m_lines->size()) {
         return m_lines->at(index);
     } else {
         return m_emptyLine;
     }
 }
 
-const size_t LineBuffer::getSize() const { return m_lines->size(); }
+const size_t LineBuffer::getLinesSize() const { return m_lines->size(); }
+
+const size_t LineBuffer::getCharSize() const { return m_charSize; }
 
 bool LineBuffer::isEmpty() const { return m_lines->empty(); }
+
+void LineBuffer::updateCharSize() {
+    m_charSize = std::accumulate(m_lines->begin(), m_lines->end(), (size_t) 0, [](size_t acc, std::string& line) { return  acc + line.size() + 1; });
+    if (m_charSize != 0)
+        m_charSize -= 1;
+}
 
 

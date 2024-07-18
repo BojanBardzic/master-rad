@@ -28,13 +28,16 @@ public:
 
     void draw();
 
-    void enterChar(std::string str);
+    void enterChar(char c);
+    void enterText(std::string str);
     void backspace();
     void deleteChar();
     void selectAll();
     void cut();
     void copy();
     void paste();
+    void undo();
+    void redo();
 
     void moveCursorRight(bool shift);
     void moveCursorLeft(bool shift);
@@ -69,12 +72,19 @@ private:
     TextCoordinates mousePositionToTextCoordinates(const ImVec2& mousePosition);
 
     void drawRectangle(ImVec2 currentPosition, float& lineHeight);
-    void drawText();
     void drawCursor();
     void drawScrollBars();
-    void drawHorizontalScrollBar();
-    void drawVerticalScrollBar();
+    void drawHorizontalScrollbar();
+    void drawVerticalScrollbar();
+    void drawHScrollbarRect();
+    void drawVScrollbarRect();
+    void updateHScrollbarRect();
+    void updateVScrollbarRect();
+    void updateHScrollSelectRect();
+    void updateVScrollSelectRect();
+    void drawRect(const MyRectangle& rect, const ImColor& color);
 
+    void updateUndoRedo();
     void updateTextBoxSize();
 private:
     PieceTable* m_pieceTable;
@@ -88,8 +98,7 @@ private:
     float m_height;
     const float m_scrollbarSize = 15.0f;
     const float m_minScrollSelectSize = 20.0f;
-    const float m_xMargin = 30.0f;
-    const float m_yMargin = 30.0f;
+    const ImVec2 m_margin = {30.0f, 30.0f};
 };
 
 

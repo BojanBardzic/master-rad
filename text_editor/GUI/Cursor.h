@@ -6,9 +6,13 @@
 #define TEXT_EDITOR_CURSOR_H
 
 #include "imgui.h"
-#include <string>
-#include <iostream>
+
 #include <chrono>
+#include <iostream>
+#include <numeric>
+#include <string>
+#include <stack>
+
 #include "LineBuffer.h"
 #include "TextCoordinates.h"
 
@@ -24,6 +28,11 @@ public:
     void moveToBeginning();
     void moveToEnd();
     void moveToEndOfFile();
+
+    void recordCursorPosition();
+    void cursorUndo();
+    void cursorRedo();
+    void clearUndoAndRedoStacks();
 
     const float getXAdvance() const;
 
@@ -47,9 +56,14 @@ private:
     void resetTimer();
     void correctColumn();
 
+    void clearUndoStack();
+    void clearRedoStack();
+
     TextCoordinates m_coord;
     LineBuffer* m_lineBuffer;
     float m_width;
+    std::stack<TextCoordinates> m_cursorUndoStack;
+    std::stack<TextCoordinates> m_cursorRedoStack;
     std::chrono::time_point<std::chrono::system_clock> m_timestamp;
     const std::chrono::duration<double> m_drawInterval = std::chrono::duration<double>(0.75);
     bool m_shouldRender;

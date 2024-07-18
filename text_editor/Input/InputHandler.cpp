@@ -27,9 +27,9 @@ void InputHandler::handleKeyboardInput() {
         } else if (isKeyPressed(ImGuiKey_Home)) {
             m_textBox->moveCursorToBeginning(shift);
         } else if (isKeyPressed(ImGuiKey_Enter)) {
-            m_textBox->enterChar("\n");
+            m_textBox->enterChar('\n');
         } else if (isKeyPressed(ImGuiKey_Tab)) {
-            m_textBox->enterChar("\t");
+            m_textBox->enterChar('\t');
         } else if (isKeyPressed(ImGuiKey_Backspace)) {
             m_textBox->backspace();
         } else if (isKeyPressed(ImGuiKey_Delete)) {
@@ -46,6 +46,10 @@ void InputHandler::handleKeyboardInput() {
             m_textBox->copy();
         } else if (ctrl && isKeyPressed(ImGuiKey_V)) {
             m_textBox->paste();
+        } else if (ctrl && isKeyPressed(ImGuiKey_Z)) {
+            m_textBox->undo();
+        } else if (ctrl && isKeyPressed(ImGuiKey_Y)) {
+            m_textBox->redo();
         }
 
         if (!io.InputQueueCharacters.empty()) {
@@ -54,7 +58,7 @@ void InputHandler::handleKeyboardInput() {
 
                 if (std::isprint(ch)) {
                     std::cerr << "Entering char: " << ch << std::endl;
-                    m_textBox->enterChar(std::string(1, ch));
+                    m_textBox->enterChar(ch);
                 }
             }
             io.InputQueueCharacters.resize(0);

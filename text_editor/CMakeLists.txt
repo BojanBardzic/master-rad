@@ -17,7 +17,7 @@ add_executable(text_editor
         PieceTable/PieceTable.h
         PieceTable/ActionDescriptor.cpp
         PieceTable/ActionDescriptor.h
-        )
+        PieceTable/InsertBuffer.cpp PieceTable/InsertBuffer.h PieceTable/DeleteBuffer.cpp PieceTable/DeleteBuffer.h)
 
 file( GLOB LIB_SOURCES ${IMGUI_PATH}/*.cpp ${IMGUI_BACKENDS_PATH}/imgui_impl_win32.cpp ${IMGUI_BACKENDS_PATH}/imgui_impl_dx12.cpp)
 file( GLOB LIB_HEADERS ${IMGUI_PATH}/*.h ${IMGUI_BACKENDS_PATH}/imgui_impl_win32.h ${IMGUI_BACKENDS_PATH}/imgui_impl_dx12.h)

@@ -13,7 +13,8 @@ Cursor::Cursor(LineBuffer* lineBuffer, size_t row, size_t col)
 Cursor::~Cursor() {}
 
 void Cursor::moveRight() {
-    if (m_lineBuffer->isEmpty() || (m_coord.m_col > m_lineBuffer->lineAt(m_coord.m_row-1).size() && m_coord.m_row == m_lineBuffer->getSize())) {
+    if (m_lineBuffer->isEmpty() || (m_coord.m_col > m_lineBuffer->lineAt(m_coord.m_row-1).size() && m_coord.m_row ==
+                                                                                                            m_lineBuffer->getLinesSize())) {
         return;
     }
 
@@ -51,7 +52,7 @@ void Cursor::moveUp() {
 }
 
 void Cursor::moveDown() {
-    if (!m_lineBuffer->isEmpty() && m_coord.m_row != m_lineBuffer->getSize()) {
+    if (!m_lineBuffer->isEmpty() && m_coord.m_row != m_lineBuffer->getLinesSize()) {
         resetTimer();
         m_coord.m_row += 1;
         correctColumn();
@@ -67,20 +68,48 @@ void Cursor::moveToEnd() {
 }
 
 void Cursor::moveToEndOfFile() {
-    m_coord.m_row = m_lineBuffer->getSize();
+    m_coord.m_row = m_lineBuffer->getLinesSize();
     m_coord.m_col = m_lineBuffer->lineAt(m_coord.m_row-1).size() + 1;
+}
+
+// Records the current cursor Position for undo and redo operations
+void Cursor::recordCursorPosition() {
+    m_cursorUndoStack.push(m_coord);
+}
+
+// Returns the previously saved cursor position and puts it into the redo stack
+void Cursor::cursorUndo() {
+    if (!m_cursorUndoStack.empty()) {
+        auto coords = m_cursorUndoStack.top();
+        m_cursorUndoStack.pop();
+        m_cursorRedoStack.push(m_coord);
+        m_coord = coords;
+    }
+}
+
+// Returns the previously saved cursor position and puts it into the undo stack
+void Cursor::cursorRedo() {
+    if (!m_cursorRedoStack.empty()) {
+        auto coords = m_cursorRedoStack.top();
+        m_cursorRedoStack.pop();
+        m_cursorUndoStack.push(m_coord);
+        m_coord = coords;
+    }
+}
+
+void Cursor::clearUndoAndRedoStacks() {
+    clearUndoStack();
+    clearRedoStack();
 }
 
 // Calculates the x-axis advancement of the substring of the line at cursorRow-1
 // between [0, cursorCol)
 const float Cursor::getXAdvance() const {
-    float advance = 0.0f;
+    float advance = ImGui::GetFont()->GetCharAdvance('W');
     auto line = m_lineBuffer->lineAt(m_coord.m_row-1);
+    auto offset = std::min(m_coord.m_col-1, line.size());
 
-    for (size_t i = 0; i<m_coord.m_col; ++i) {
-        advance += ImGui::GetFont()->GetCharAdvance(line[i]);
-    }
-    std::cerr << std::endl;
+    advance += std::accumulate(line.begin(), line.begin()+offset, 0.0f, [](float acc, char c) { return acc + ImGui::GetFont()->GetCharAdvance(c); });
 
     return advance;
 }
@@ -112,16 +141,14 @@ void Cursor::setCoords(const TextCoordinates &coords) { m_coord = coords; }
 void Cursor::setWidth(const float& width) { m_width = width; }
 
 ImVec2 Cursor::getCursorPosition(const ImVec2& cursorScreenPosition) {
-    auto xOffset = 0.0f;
     auto yOffset = (m_coord.m_row - 1) * ImGui::GetFontSize();
 
     auto line = m_lineBuffer->lineAt(m_coord.m_row-1);
+    auto length = std::min(line.size(), m_coord.m_col-1);
 
-    for (int i=0; i<m_coord.m_col-1; ++i) {
-        xOffset += ImGui::GetFont()->GetCharAdvance(line[i]);
-    }
+    auto xOffset = getXAdvance(line.substr(0, length));
 
-    return ImVec2(cursorScreenPosition.x + xOffset, cursorScreenPosition.y + yOffset);
+    return {cursorScreenPosition.x + xOffset, cursorScreenPosition.y + yOffset};
 }
 
 void Cursor::calculateWidth() {
@@ -140,13 +167,8 @@ void Cursor::updateShouldRender() {
 }
 
 float Cursor::getXAdvance(const std::string& str) {
-    float advance = 0.0f;
-
-    for (const char& c : str) {
-        advance += ImGui::GetFont()->GetCharAdvance(c);
-    }
-
-    return advance;
+    return std::accumulate(str.begin(), str.end(), 0.0f,
+                           [](float acc, char c) { return acc + ImGui::GetFont()->GetCharAdvance(c); });
 }
 
 void Cursor::resetTimer() {
@@ -157,6 +179,18 @@ void Cursor::resetTimer() {
 void Cursor::correctColumn() {
     if (m_coord.m_col > m_lineBuffer->lineAt(m_coord.m_row-1).size() + 1) {
         moveToEnd();
+    }
+}
+
+void Cursor::clearUndoStack() {
+    while (!m_cursorUndoStack.empty()) {
+        m_cursorUndoStack.pop();
+    }
+}
+
+void Cursor::clearRedoStack() {
+    while (!m_cursorRedoStack.empty()) {
+        m_cursorRedoStack.pop();
     }
 }
 

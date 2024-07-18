@@ -26,7 +26,9 @@ void Scroll::updateXScroll(float &width) {
     if (advance != 0.0f && advance - m_xScroll > width) {
         m_xScroll = advance - width;
     } else if (advance != 0.0f && advance <= m_xScroll) {
-        m_xScroll = advance - ImGui::GetFont()->GetCharAdvance(m_lineBuffer->lineAt(cursorRow-1)[cursorCol-1]);
+        auto line = m_lineBuffer->lineAt(cursorRow-1);
+        char c = cursorCol-1 < line.size() ? '0' : line[cursorCol-1];
+        m_xScroll = advance - ImGui::GetFont()->GetCharAdvance(c);
     } else if (advance == 0.0f) {
         std::cerr << "setting scroll to 0" << std::endl;
         m_xScroll = 0.0f;
@@ -40,8 +42,6 @@ void Scroll::updateYScroll(float& height) {
 
     auto cursorRow = m_cursor->getRow();
     auto lineHeight = ImGui::GetFontSize();
-
-    std::cerr << "ROW: " << cursorRow << std::endl;
 
     if (cursorRow * lineHeight - m_yScroll > height) {
         m_yScroll = cursorRow * lineHeight - height;
@@ -63,7 +63,7 @@ void Scroll::updateMaxXScroll(float& width) {
     ImGui::PushFont(m_font->getFont());
     float maxAdvance = 0.0f;
 
-    for (size_t i=0; i<m_lineBuffer->getSize(); ++i) {
+    for (size_t i=0; i< m_lineBuffer->getLinesSize(); ++i) {
         auto advance = m_cursor->getXAdvance(m_lineBuffer->lineAt(i));
         if (advance > maxAdvance)
             maxAdvance = advance;
@@ -75,7 +75,7 @@ void Scroll::updateMaxXScroll(float& width) {
 
 void Scroll::updateMaxYScroll(float& height) {
     ImGui::PushFont(m_font->getFont());
-    m_maxYScroll = std::max(0.0f, (m_lineBuffer->getSize() * ImGui::GetFontSize()) - height);
+    m_maxYScroll = std::max(0.0f, (m_lineBuffer->getLinesSize() * ImGui::GetFontSize()) - height);
     ImGui::PopFont();
 }
 

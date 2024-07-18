@@ -46,8 +46,10 @@ void PieceDescriptor::setLength(size_t mLength) {
 }
 
 std::pair<PieceDescriptor *, PieceDescriptor *> PieceDescriptor::splitPiece(PieceDescriptor *piece, size_t splitIndex) {
-    if (splitIndex == 0 || splitIndex >= piece->getLength())
+    if (splitIndex == 0 || splitIndex >= piece->getLength()) {
+        std::cerr << "SplitPiece returned nullptr" << std::endl;
         return {nullptr, nullptr};
+    }
 
     auto leftPiece = new PieceDescriptor(piece->getSource(), piece->getStart(), splitIndex);
     auto rightPiece = new PieceDescriptor(piece->getSource(), piece->getStart() + splitIndex, piece->getLength() - splitIndex);
@@ -56,8 +58,10 @@ std::pair<PieceDescriptor *, PieceDescriptor *> PieceDescriptor::splitPiece(Piec
 }
 
 PieceDescriptor* PieceDescriptor::cutoffFromLeft(PieceDescriptor *piece, size_t offset) {
-    if (offset >= piece->getLength() || offset == 0)
+    if (offset >= piece->getLength() || offset == 0) {
+        std::cerr << "cutoffFromLeft returned nullptr" << std::endl;
         return nullptr;
+    }
 
     auto cutoffPiece = new PieceDescriptor(piece->getSource(), piece->getStart(), offset);
 
@@ -68,8 +72,10 @@ PieceDescriptor* PieceDescriptor::cutoffFromLeft(PieceDescriptor *piece, size_t 
 }
 
 PieceDescriptor* PieceDescriptor::cutoffFromRight(PieceDescriptor *piece, size_t offset) {
-    if (offset >= piece->getLength() || offset == 0)
+    if (offset >= piece->getLength() || offset == 0) {
+        std::cerr << "cutoffFromRight returned nullptr" << std::endl;
         return nullptr;
+    }
 
     auto cutoffPiece = new PieceDescriptor(piece->getSource(), piece->getStart() + piece->getLength() - offset, offset);
 

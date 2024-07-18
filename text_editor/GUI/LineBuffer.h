@@ -5,6 +5,7 @@
 #ifndef TEXT_EDITOR_LINEBUFFER_H
 #define TEXT_EDITOR_LINEBUFFER_H
 
+#include <numeric>
 #include <sstream>
 #include "../PieceTable/PieceTable.h"
 #include "TextCoordinates.h"
@@ -19,11 +20,15 @@ public:
     TextCoordinates bufferIndexToTextCoordinates(const size_t& index);
 
     std::string& lineAt(size_t index) const;
-    const size_t getSize() const;
+    const size_t getLinesSize() const;
+    const size_t getCharSize() const;
     bool isEmpty() const;
 
 private:
+    void updateCharSize();
+
     static std::string m_emptyLine;
+    size_t m_charSize;
     std::vector<std::string>* m_lines;
     PieceTable* m_pieceTable;
 };

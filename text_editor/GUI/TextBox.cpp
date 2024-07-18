@@ -7,7 +7,7 @@
 #include <utility>
 
 TextBox::TextBox(float width, float height, std::string fontName, std::string theme)
-    : m_width(width - m_xMargin), m_height(height - m_yMargin) {
+    : m_width(width - m_margin.x), m_height(height - m_margin.y) {
 
     FontManager::init();
 
@@ -49,7 +49,7 @@ void TextBox::draw() {
     ImGui::PushFont(m_font->getFont());
 
     auto lineHeight = ImGui::GetFontSize();
-    auto linesSize = m_lineBuffer->getSize();
+    auto linesSize = m_lineBuffer->getLinesSize();
 
     for (size_t i=0; i<linesSize; ++i) {
         // Get the line
@@ -100,7 +100,7 @@ void TextBox::draw() {
         ImGui::GetWindowDrawList()->PopClipRect();
 
         // Update the current position
-        currentPosition.y = currentPosition.y + ImGui::GetFontSize();
+        currentPosition.y += ImGui::GetFontSize();
     }
 
     auto yOffset = currentPosition.y - cursorScreenPosition.y;
@@ -119,8 +119,33 @@ void TextBox::draw() {
 }
 
 // Enters the text in the buffer
-void TextBox::enterChar(std::string str) {
+void TextBox::enterChar(char c) {
+    updateUndoRedo();
     deleteSelection();
+
+    m_pieceTable->flushDeleteBuffer();
+
+    auto coords = m_cursor->getCoords();
+    size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
+
+    auto initialized = m_pieceTable->insertChar(c, index);
+
+    if (initialized)
+        m_cursor->recordCursorPosition();
+
+    m_lineBuffer->getLines();
+    m_cursor->moveRight();
+    m_scroll->updateScroll(m_width, m_height);
+    m_scroll->updateMaxScroll(m_width, m_height);
+}
+
+void TextBox::enterText(std::string str) {
+    updateUndoRedo();
+    deleteSelection();
+
+    m_pieceTable->flushInsertBuffer();
+    m_pieceTable->flushDeleteBuffer();
+    m_cursor->recordCursorPosition();
 
     auto size = str.size();
     auto coords = m_cursor->getCoords();
@@ -128,18 +153,9 @@ void TextBox::enterChar(std::string str) {
     m_pieceTable->insert(std::move(str), index);
     m_lineBuffer->getLines();
 
-    if (size == 1) {
-        m_cursor->moveRight();
-    } else {
-        std::cerr << "index: " << index << std::endl;
-        std::cerr << "size: " << size << std::endl;
-        auto newCoords = m_lineBuffer->bufferIndexToTextCoordinates(index + size);
-        m_cursor->setCoords(newCoords);
-    }
+    auto newCoords = m_lineBuffer->bufferIndexToTextCoordinates(index + size);
+    m_cursor->setCoords(newCoords);
 
-    std::cerr << "Moved cursor" << std::endl;
-
-    //m_cursor->moveRight();
     m_scroll->updateScroll(m_width, m_height);
     m_scroll->updateMaxScroll(m_width, m_height);
 }
@@ -154,24 +170,41 @@ void TextBox::backspace() {
     auto coords = m_cursor->getCoords();
     size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
     if (index != 0) {
-        m_pieceTable->deleteText(index - 1, index);
+        updateUndoRedo();
+        m_pieceTable->flushInsertBuffer();
+        auto initialized = m_pieceTable->backspace(index);
+
+        if (initialized)
+            m_cursor->recordCursorPosition();
+
         m_cursor->moveLeft();
-        m_scroll->updateScroll(m_width, m_height);
         m_lineBuffer->getLines();
+        m_scroll->updateScroll(m_width, m_height);
         m_scroll->updateMaxScroll(m_width, m_height);
     }
 }
 
 void TextBox::deleteChar() {
+    std::cerr << "Entered delete char" << std::endl;
     auto deleted = deleteSelection();
 
-    if (deleted)
+    if (deleted) {
+        std::cerr << "Stopping because of deleted section" << std::endl;
         return;
+    }
 
     auto coords = m_cursor->getCoords();
     size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
-    if (index != m_pieceTable->getSize()) {
-        m_pieceTable->deleteText(index, index+1);
+    if (index != m_lineBuffer->getCharSize()) {
+        std::cerr << "CHAR SIZE: " << m_lineBuffer->getCharSize() << std::endl;
+        std::cerr << "Calling piece table" << std::endl;
+        updateUndoRedo();
+        m_pieceTable->flushInsertBuffer();
+        auto initialized = m_pieceTable->charDelete(index);
+
+        if (initialized)
+            m_cursor->recordCursorPosition();
+
         m_lineBuffer->getLines();
         m_scroll->updateMaxScroll(m_width, m_height);
     }
@@ -198,7 +231,26 @@ void TextBox::copy() {
 
 void TextBox::paste() {
     auto text = std::string(ImGui::GetClipboardText());
-    enterChar(text);
+    if (!text.empty())
+        enterText(text);
+}
+
+void TextBox::undo() {
+    m_pieceTable->flushInsertBuffer();
+    m_pieceTable->flushDeleteBuffer();
+    m_pieceTable->undo();
+    m_cursor->cursorUndo();
+    m_lineBuffer->getLines();
+    m_scroll->updateScroll(m_width, m_height);
+    m_scroll->updateMaxScroll(m_width, m_height);
+}
+
+void TextBox::redo() {
+    m_pieceTable->redo();
+    m_cursor->cursorRedo();
+    m_lineBuffer->getLines();
+    m_scroll->updateScroll(m_width, m_height);
+    m_scroll->updateMaxScroll(m_width, m_height);
 }
 
 void TextBox::moveCursorRight(bool shift) {
@@ -446,78 +498,114 @@ void TextBox::drawCursor() {
 }
 
 void TextBox::drawScrollBars() {
-    drawHorizontalScrollBar();
-    drawVerticalScrollBar();
+    drawHorizontalScrollbar();
+    drawVerticalScrollbar();
     auto screenPosition = ImGui::GetCursorScreenPos();
     auto topLeft = ImVec2(screenPosition.x + m_width, screenPosition.y + m_height);
     auto bottomRight = ImVec2(topLeft.x + m_scrollbarSize, topLeft.y + m_scrollbarSize);
     ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getScrollbarPrimaryColor());
 }
 
-void TextBox::drawHorizontalScrollBar() {
-    auto screenPosition = ImGui::GetCursorScreenPos();
-    auto topLeft = ImVec2(screenPosition.x + m_scrollbarSize, screenPosition.y + m_height);
-    auto bottomRight = ImVec2(topLeft.x + m_width - m_scrollbarSize, topLeft.y + m_scrollbarSize);
-    m_scroll->setHScrollbarRect(MyRectangle(topLeft, bottomRight));
-
-    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x - m_scrollbarSize, topLeft.y), ImVec2(bottomRight.x + m_scrollbarSize, bottomRight.y), m_theme->getScrollbarPrimaryColor());
-    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y), ImVec2(bottomRight.x , bottomRight.y), m_theme->getScrollbarSecondaryColor());
+void TextBox::drawHorizontalScrollbar() {
+    updateHScrollbarRect();
+    drawHScrollbarRect();
 
     auto maxXScroll = m_scroll->getMaxXScroll();
 
     if (maxXScroll != 0.0f) {
-        auto xScroll = m_scroll->getXScroll();
-        auto percentVisible = m_width / (m_width + maxXScroll);
-        auto scrollBarWidth = m_width - 2 * m_scrollbarSize;
-
-        auto scrollSelectSize = std::max(scrollBarWidth*percentVisible, m_minScrollSelectSize);
-        auto scrollBarOffset = (scrollBarWidth - scrollSelectSize) * (xScroll / maxXScroll);
-
-        auto topLeftScrollSelect = ImVec2(topLeft.x + scrollBarOffset, topLeft.y);
-        auto bottomRightScrollSelect = ImVec2(topLeftScrollSelect.x + scrollSelectSize + m_scrollbarSize, topLeftScrollSelect.y + m_scrollbarSize);
-
-        m_scroll->setHScrollSelectRect(MyRectangle(topLeftScrollSelect, bottomRightScrollSelect));
-
-        ImGui::GetWindowDrawList()->AddRectFilled(topLeftScrollSelect, bottomRightScrollSelect, m_theme->getScrollbarPrimaryColor());
+        updateHScrollSelectRect();
+        drawRect(m_scroll->getHScrollSelectRect(), m_theme->getScrollbarPrimaryColor());
     }
 }
 
-void TextBox::drawVerticalScrollBar() {
-    auto screenPosition = ImGui::GetCursorScreenPos();
-    auto topLeft = ImVec2(screenPosition.x + m_width, screenPosition.y + m_scrollbarSize);
-    auto bottomRight = ImVec2(topLeft.x + m_scrollbarSize, topLeft.y + m_height - m_scrollbarSize);
-
-    m_scroll->setVScrollbarRect(MyRectangle(topLeft, bottomRight));
-
-    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y - m_scrollbarSize), ImVec2(bottomRight.x, bottomRight.y + m_scrollbarSize), m_theme->getScrollbarPrimaryColor());
-    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getScrollbarSecondaryColor());
+void TextBox::drawVerticalScrollbar() {
+    updateVScrollbarRect();
+    drawVScrollbarRect();
 
     auto maxYScroll = m_scroll->getMaxYScroll();
 
     if (maxYScroll != 0.0f) {
-        auto yScroll = m_scroll->getYScroll();
-        auto percentVisible = m_height / (m_height + maxYScroll);
-        auto scrollBarHeight = m_height - 2 * m_scrollbarSize;
-
-        auto scrollSelectSize = std::max(scrollBarHeight*percentVisible, m_minScrollSelectSize);
-        auto scrollBarOffset = (scrollBarHeight - scrollSelectSize) * (yScroll / maxYScroll);
-
-        auto topLeftScrollSelect = ImVec2(topLeft.x, topLeft.y + scrollBarOffset);
-        auto bottomRightScrollSelect = ImVec2(topLeftScrollSelect.x + m_scrollbarSize, topLeftScrollSelect.y + scrollSelectSize + m_scrollbarSize);
-
-        m_scroll->setVScrollSelectRect(MyRectangle(topLeftScrollSelect, bottomRightScrollSelect));
-
-        ImGui::GetWindowDrawList()->AddRectFilled(topLeftScrollSelect, bottomRightScrollSelect, m_theme->getScrollbarPrimaryColor());
+        updateVScrollSelectRect();
+        drawRect(m_scroll->getVScrollSelectRect(), m_theme->getScrollbarPrimaryColor());
     }
 }
 
+void TextBox::drawHScrollbarRect() {
+    auto rect = m_scroll->getHScrollbarRect();
+    auto topLeft = rect.getTopLeft();
+    auto bottomRight = rect.getBottomRight();
 
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x - m_scrollbarSize, topLeft.y), ImVec2(bottomRight.x + m_scrollbarSize, bottomRight.y), m_theme->getScrollbarPrimaryColor());
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y), ImVec2(bottomRight.x , bottomRight.y), m_theme->getScrollbarSecondaryColor());
+}
+
+void TextBox::drawVScrollbarRect() {
+    auto rect = m_scroll->getVScrollbarRect();
+    auto topLeft = rect.getTopLeft();
+    auto bottomRight = rect.getBottomRight();
+
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y - m_scrollbarSize), ImVec2(bottomRight.x, bottomRight.y + m_scrollbarSize), m_theme->getScrollbarPrimaryColor());
+    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getScrollbarSecondaryColor());
+}
+
+void TextBox::drawRect(const MyRectangle &rect, const ImColor& color) {
+    ImGui::GetWindowDrawList()->AddRectFilled(rect.getTopLeft(), rect.getBottomRight(), color);
+}
+
+void TextBox::updateHScrollbarRect() {
+    auto screenPosition = ImGui::GetCursorScreenPos();
+    auto topLeft = ImVec2(screenPosition.x + m_scrollbarSize, screenPosition.y + m_height);
+    auto bottomRight = ImVec2(topLeft.x + m_width - m_scrollbarSize, topLeft.y + m_scrollbarSize);
+    m_scroll->setHScrollbarRect(MyRectangle(topLeft, bottomRight));
+}
+
+void TextBox::updateVScrollbarRect() {
+    auto screenPosition = ImGui::GetCursorScreenPos();
+    auto topLeft = ImVec2(screenPosition.x + m_width, screenPosition.y + m_scrollbarSize);
+    auto bottomRight = ImVec2(topLeft.x + m_scrollbarSize, topLeft.y + m_height - m_scrollbarSize);
+    m_scroll->setVScrollbarRect(MyRectangle(topLeft, bottomRight));
+}
+
+void TextBox::updateHScrollSelectRect() {
+    auto maxXScroll = m_scroll->getMaxXScroll();
+    auto xScroll = m_scroll->getXScroll();
+    auto percentVisible = m_width / (m_width + maxXScroll);
+    auto scrollBarWidth = m_width - 2 * m_scrollbarSize;
+
+    auto scrollSelectSize = std::max(scrollBarWidth*percentVisible, m_minScrollSelectSize);
+    auto scrollBarOffset = (scrollBarWidth - scrollSelectSize) * (xScroll / maxXScroll);
+    auto topLeft = m_scroll->getHScrollbarRect().getTopLeft();
+
+    auto topLeftScrollSelect = ImVec2(topLeft.x + scrollBarOffset, topLeft.y);
+    auto bottomRightScrollSelect = ImVec2(topLeftScrollSelect.x + scrollSelectSize + m_scrollbarSize, topLeftScrollSelect.y + m_scrollbarSize);
+
+    m_scroll->setHScrollSelectRect(MyRectangle(topLeftScrollSelect, bottomRightScrollSelect));
+}
+
+void TextBox::updateVScrollSelectRect() {
+    auto maxYScroll = m_scroll->getMaxYScroll();
+    auto yScroll = m_scroll->getYScroll();
+    auto percentVisible = m_height / (m_height + maxYScroll);
+    auto scrollBarHeight = m_height - 2 * m_scrollbarSize;
+
+    auto scrollSelectSize = std::max(scrollBarHeight*percentVisible, m_minScrollSelectSize);
+    auto scrollBarOffset = (scrollBarHeight - scrollSelectSize) * (yScroll / maxYScroll);
+    auto topLeft = m_scroll->getVScrollbarRect().getTopLeft();
+
+    auto topLeftScrollSelect = ImVec2(topLeft.x, topLeft.y + scrollBarOffset);
+    auto bottomRightScrollSelect = ImVec2(topLeftScrollSelect.x + m_scrollbarSize, topLeftScrollSelect.y + scrollSelectSize + m_scrollbarSize);
+
+    m_scroll->setVScrollSelectRect(MyRectangle(topLeftScrollSelect, bottomRightScrollSelect));
+}
+
+
+// Updates the TextBox size to the size of the window.
 void TextBox::updateTextBoxSize() {
     bool changedWidth = false;
     bool changedHeight = false;
 
-    auto newWidth = ImGui::GetWindowWidth() - m_xMargin;
-    auto newHeight = ImGui::GetWindowHeight() - m_yMargin;
+    auto newWidth = ImGui::GetWindowWidth() - m_margin.x;
+    auto newHeight = ImGui::GetWindowHeight() - m_margin.y;
 
     if (m_width != newWidth) {
         m_width = newWidth;
@@ -535,34 +623,50 @@ void TextBox::updateTextBoxSize() {
         m_scroll->updateMaxYScroll(m_height);
 }
 
+// Deletes the text inside a selection if it's active.
 bool TextBox::deleteSelection() {
     if (!m_selection->getActive())
         return false;
 
+    updateUndoRedo();
+
+    m_pieceTable->flushInsertBuffer();
+    m_pieceTable->flushDeleteBuffer();
+
+    m_cursor->recordCursorPosition();
+
     auto startIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getStart());
     auto endIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getEnd());
-    std::cerr << "Deleting from index " << startIndex << " to index " << endIndex << "." << std::endl;
+    //std::cerr << "Deleting from index " << startIndex << " to index " << endIndex << "." << std::endl;
     m_pieceTable->deleteText(startIndex, endIndex);
 
     m_lineBuffer->getLines();
-    m_scroll->updateMaxScroll(m_width, m_height);
     m_cursor->setCoords(m_selection->getStart());
-
+    m_scroll->updateScroll(m_width, m_height);
+    m_scroll->updateMaxScroll(m_width, m_height);
     m_selection->setActive(false);
 
     return true;
 }
+
 
 void TextBox::copySelectionToClipboard() {
     auto selectionText = m_selection->getSelectionText();
     ImGui::SetClipboardText(selectionText.c_str());
 }
 
+void TextBox::updateUndoRedo() {
+    if (!m_pieceTable->isRedoEmpty()) {
+        m_pieceTable->clearUndoAndRedoStacks();
+        m_cursor->clearUndoAndRedoStacks();
+    }
+}
+
 TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosition) {
     ImGui::PushFont(m_font->getFont());
 
     float rows = (mousePosition.y - 10.0f) / ImGui::GetFontSize();
-    int maxValue = m_lineBuffer->isEmpty() ? 1 : m_lineBuffer->getSize() - 1;
+    int maxValue = m_lineBuffer->isEmpty() ? 1 : m_lineBuffer->getLinesSize() - 1;
     size_t row = std::min(maxValue, (int) rows);
     auto line = m_lineBuffer->lineAt(row);
 
