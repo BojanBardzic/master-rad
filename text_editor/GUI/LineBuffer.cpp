@@ -6,7 +6,7 @@
 
 std::string LineBuffer::m_emptyLine = "";
 
-LineBuffer::LineBuffer(PieceTable *pieceTable) : m_pieceTable(pieceTable) {
+LineBuffer::LineBuffer(PieceTableInstance *pieceTableInstance) : m_pieceTableInstance(pieceTableInstance) {
     m_lines = new std::vector<std::string>();
 }
 
@@ -18,7 +18,7 @@ LineBuffer::~LineBuffer() {
 void LineBuffer::getLines() {
     // Set up a string stream and load the PieceTable data into it
     std::stringstream stream;
-    stream << *m_pieceTable;
+    stream << m_pieceTableInstance->getInstance();
     // Turn the string stream into a std::string
     std::string textBuffer = stream.str();
 

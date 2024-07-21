@@ -12,6 +12,7 @@
 #include "LineBuffer.h"
 #include "MyRectangle.h"
 #include "../PieceTable/PieceTable.h"
+#include "../PieceTable/PieceTableInstance.h"
 #include "Selection.h"
 #include "Scroll.h"
 #include "Theme.h"
@@ -39,6 +40,9 @@ public:
     void undo();
     void redo();
 
+    void newFile();
+    bool open(std::string& filename);
+
     void moveCursorRight(bool shift);
     void moveCursorLeft(bool shift);
     void moveCursorUp(bool shift);
@@ -59,10 +63,12 @@ public:
 
     float getWidth() const;
     float getHeight() const;
+    ImVec2 getTextBoxPosition() const;
     const MyRectangle& getHScrollbarRect() const;
     const MyRectangle& getVScrollbarRect() const;
     float getScrollbarSize() const;
     Cursor* getCursor() const;
+    bool isSelectionActive() const;
 
     void setWidth(float width);
     void setHeight(float height);
@@ -87,18 +93,20 @@ private:
     void updateUndoRedo();
     void updateTextBoxSize();
 private:
-    PieceTable* m_pieceTable;
+    PieceTableInstance* m_pieceTableInstance;
     LineBuffer* m_lineBuffer;
     Cursor* m_cursor;
     Selection* m_selection;
     Scroll* m_scroll;
     Font* m_font;
     Theme* m_theme;
+    bool m_dirty;
     float m_width;
     float m_height;
     const float m_scrollbarSize = 15.0f;
     const float m_minScrollSelectSize = 20.0f;
-    const ImVec2 m_margin = {30.0f, 30.0f};
+    const ImVec2 m_topLeftMargin = {0.0f, 0.0f};
+    const ImVec2 m_bottomRightMargin = {30.0f, 30.0f};
 };
 
 

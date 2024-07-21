@@ -17,7 +17,7 @@ public:
 public:
     constexpr static float m_maxSize = 61.0f;
     constexpr static float m_minSize =  9.0f;
-    constexpr static float m_defaultSize = 13.0f;
+    constexpr static float m_defaultSize = 15.0f;
     constexpr static float m_offset = 2.0f;
 private:
     static std::unordered_map<std::string, std::string> m_fontPaths;

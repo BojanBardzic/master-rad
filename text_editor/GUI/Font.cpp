@@ -4,7 +4,7 @@
 
 #include "Font.h"
 
-Font::Font(std::string &name, float size) : m_name(name), m_size(size) {
+Font::Font(const std::string &name, float size) : m_name(name), m_size(size) {
     m_font = FontManager::getFont(m_name, m_size);
 }
 

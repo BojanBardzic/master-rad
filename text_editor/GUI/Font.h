@@ -11,7 +11,7 @@
 
 class Font {
 public:
-    Font(std::string& name, float size = FontManager::m_defaultSize);
+    Font(const std::string& name, float size = FontManager::m_defaultSize);
     ~Font();
 
     void increaseSize();

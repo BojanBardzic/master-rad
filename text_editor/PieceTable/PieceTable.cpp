@@ -117,8 +117,7 @@ PieceTable::PieceTable(std::string& filename) {
     std::ifstream input(filename);
 
     std::getline(input, *m_originalBuffer, '\0');
-
-    m_size = m_originalBuffer->size();
+    insert(SourceType::Original, 0, m_originalBuffer->size(), 0);
 
     input.close();
 }

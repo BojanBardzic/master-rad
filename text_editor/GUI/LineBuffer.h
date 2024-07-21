@@ -7,12 +7,12 @@
 
 #include <numeric>
 #include <sstream>
-#include "../PieceTable/PieceTable.h"
+#include "../PieceTable/PieceTableInstance.h"
 #include "TextCoordinates.h"
 
 class LineBuffer {
 public:
-    LineBuffer(PieceTable* pieceTable);
+    LineBuffer(PieceTableInstance* pieceTableInstance);
     ~LineBuffer();
 
     void getLines();
@@ -30,7 +30,7 @@ private:
     static std::string m_emptyLine;
     size_t m_charSize;
     std::vector<std::string>* m_lines;
-    PieceTable* m_pieceTable;
+    PieceTableInstance* m_pieceTableInstance;
 };
 
 

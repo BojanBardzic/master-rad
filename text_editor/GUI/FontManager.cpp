@@ -13,6 +13,7 @@ ImFont* FontManager::getFont(std::string &name, float size) {
 
 void FontManager::init() {
     FontManager::m_fontPaths.insert({"Consolas", "C:\\Users\\bbard\\OneDrive\\Desktop\\MasterRad\\master-rad\\text_editor\\GUI\\Fonts\\Consolas.ttf"});
+    FontManager::m_fontPaths.insert({"Segoe UI", "C:\\Users\\bbard\\OneDrive\\Desktop\\MasterRad\\master-rad\\text_editor\\GUI\\Fonts\\Segoe UI.ttf"});
 
     for (auto entry : m_fontPaths) {
         auto fontName = entry.first;

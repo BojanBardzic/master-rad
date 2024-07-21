@@ -82,12 +82,13 @@ void InputHandler::handleMouseInput() {
         }
     } else if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
         auto delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
+        auto previousPosition = ImVec2(position.x - delta.x, position.y - delta.y);
 
-        if (isInsideHorizontalScrollbar(position)) {
+        if (isInsideHorizontalScrollbar(position) && isInsideHorizontalScrollbar(previousPosition)) {
             m_textBox->horizontalScroll(position, delta);
-        } else if (isInsideVerticalScrollbar(position)) {
+        } else if (isInsideVerticalScrollbar(position) && isInsideVerticalScrollbar(previousPosition)) {
             m_textBox->verticalScroll(position, delta);
-        } else  if (isInsideTextBox(position)) {
+        } else if (isInsideTextBox(position) && isInsideTextBox(previousPosition)) {
             m_textBox->setMouseSelection(position, delta);
         }
     } else if (mouseWheel != 0.0f) {

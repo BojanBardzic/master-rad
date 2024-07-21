@@ -6,21 +6,21 @@
 #include "ThemeManager.h"
 #include <utility>
 
-TextBox::TextBox(float width, float height, std::string fontName, std::string theme)
-    : m_width(width - m_margin.x), m_height(height - m_margin.y) {
+TextBox::TextBox(float width, float height, std::string fontName, std::string theme) : m_dirty(false) {
 
-    FontManager::init();
-
-    m_pieceTable = new PieceTable();
-    m_lineBuffer = new LineBuffer(m_pieceTable);
+    m_pieceTableInstance = new PieceTableInstance();
+    m_lineBuffer = new LineBuffer(m_pieceTableInstance);
     m_cursor = new Cursor(m_lineBuffer);
     m_selection = new Selection(m_lineBuffer);
     m_font = new Font(fontName);
     m_scroll = new Scroll(m_lineBuffer, m_cursor, m_font);
     m_theme = ThemeManager::getTheme(theme);
 
+    m_width = width - m_bottomRightMargin.x - m_topLeftMargin.x;
+    m_height = height - m_bottomRightMargin.y - m_topLeftMargin.y;
+
     // Fixme: Just a test input, will be removed later.
-    m_pieceTable->insert("Hello World! World world world world world world world world world world world world\n\n\nHello There!\nSomething", 0);
+    m_pieceTableInstance->getInstance().insert("Hello World! World world world world world world world world world world world world\n\n\nHello There!\nSomething", 0);
     m_lineBuffer->getLines();
 }
 
@@ -30,7 +30,7 @@ TextBox::~TextBox() {
     delete m_selection;
     delete m_cursor;
     delete m_lineBuffer;
-    delete m_pieceTable;
+    delete m_pieceTableInstance;
 }
 
 // Draws the textBox based on PieceTable data.
@@ -38,7 +38,7 @@ void TextBox::draw() {
     if(!m_scroll->isInit())
         m_scroll->init(m_width, m_height);
 
-    auto cursorScreenPosition = ImGui::GetCursorScreenPos();
+    auto cursorScreenPosition = getTextBoxPosition();
 
     // We track our current position as we draw the lines
     auto currentPosition = cursorScreenPosition;
@@ -118,17 +118,18 @@ void TextBox::draw() {
     ImGui::PopFont();
 }
 
-// Enters the text in the buffer
+// Enters single character in the pieceTable
 void TextBox::enterChar(char c) {
     updateUndoRedo();
+    m_dirty = true;
     deleteSelection();
 
-    m_pieceTable->flushDeleteBuffer();
+    m_pieceTableInstance->getInstance().flushDeleteBuffer();
 
     auto coords = m_cursor->getCoords();
     size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
 
-    auto initialized = m_pieceTable->insertChar(c, index);
+    auto initialized = m_pieceTableInstance->getInstance().insertChar(c, index);
 
     if (initialized)
         m_cursor->recordCursorPosition();
@@ -139,18 +140,20 @@ void TextBox::enterChar(char c) {
     m_scroll->updateMaxScroll(m_width, m_height);
 }
 
+// Enters a text in the piece table and updates the state of the text box
 void TextBox::enterText(std::string str) {
     updateUndoRedo();
+    m_dirty = true;
     deleteSelection();
 
-    m_pieceTable->flushInsertBuffer();
-    m_pieceTable->flushDeleteBuffer();
+    m_pieceTableInstance->getInstance().flushInsertBuffer();
+    m_pieceTableInstance->getInstance().flushDeleteBuffer();
     m_cursor->recordCursorPosition();
 
     auto size = str.size();
     auto coords = m_cursor->getCoords();
     size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
-    m_pieceTable->insert(std::move(str), index);
+    m_pieceTableInstance->getInstance().insert(std::move(str), index);
     m_lineBuffer->getLines();
 
     auto newCoords = m_lineBuffer->bufferIndexToTextCoordinates(index + size);
@@ -160,6 +163,7 @@ void TextBox::enterText(std::string str) {
     m_scroll->updateMaxScroll(m_width, m_height);
 }
 
+// Preforms a backspace operation on the piece table and updates the state of the text box
 void TextBox::backspace() {
     auto deleted = deleteSelection();
 
@@ -171,8 +175,9 @@ void TextBox::backspace() {
     size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
     if (index != 0) {
         updateUndoRedo();
-        m_pieceTable->flushInsertBuffer();
-        auto initialized = m_pieceTable->backspace(index);
+        m_dirty = true;
+        m_pieceTableInstance->getInstance().flushInsertBuffer();
+        auto initialized = m_pieceTableInstance->getInstance().backspace(index);
 
         if (initialized)
             m_cursor->recordCursorPosition();
@@ -184,23 +189,21 @@ void TextBox::backspace() {
     }
 }
 
+// Deletes the char right of the cursor if there is one
 void TextBox::deleteChar() {
-    std::cerr << "Entered delete char" << std::endl;
     auto deleted = deleteSelection();
 
     if (deleted) {
-        std::cerr << "Stopping because of deleted section" << std::endl;
         return;
     }
 
     auto coords = m_cursor->getCoords();
     size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
     if (index != m_lineBuffer->getCharSize()) {
-        std::cerr << "CHAR SIZE: " << m_lineBuffer->getCharSize() << std::endl;
-        std::cerr << "Calling piece table" << std::endl;
         updateUndoRedo();
-        m_pieceTable->flushInsertBuffer();
-        auto initialized = m_pieceTable->charDelete(index);
+        m_dirty = true;
+        m_pieceTableInstance->getInstance().flushInsertBuffer();
+        auto initialized = m_pieceTableInstance->getInstance().charDelete(index);
 
         if (initialized)
             m_cursor->recordCursorPosition();
@@ -236,9 +239,9 @@ void TextBox::paste() {
 }
 
 void TextBox::undo() {
-    m_pieceTable->flushInsertBuffer();
-    m_pieceTable->flushDeleteBuffer();
-    m_pieceTable->undo();
+    m_pieceTableInstance->getInstance().flushInsertBuffer();
+    m_pieceTableInstance->getInstance().flushDeleteBuffer();
+    m_pieceTableInstance->getInstance().undo();
     m_cursor->cursorUndo();
     m_lineBuffer->getLines();
     m_scroll->updateScroll(m_width, m_height);
@@ -246,11 +249,38 @@ void TextBox::undo() {
 }
 
 void TextBox::redo() {
-    m_pieceTable->redo();
+    m_pieceTableInstance->getInstance().redo();
     m_cursor->cursorRedo();
     m_lineBuffer->getLines();
     m_scroll->updateScroll(m_width, m_height);
     m_scroll->updateMaxScroll(m_width, m_height);
+}
+
+void TextBox::newFile() {
+    m_pieceTableInstance->newFile();
+
+    m_lineBuffer->getLines();
+    m_cursor->clearUndoAndRedoStacks();
+    m_cursor->setCoords({1, 1});
+    m_scroll->updateScroll(m_width, m_height);
+    m_scroll->updateMaxScroll(m_width, m_height);
+}
+
+bool TextBox::open(std::string& filename) {
+    std::ifstream inputFile(filename);
+
+    if (!inputFile.is_open()) {
+        return false;
+    }
+
+    m_pieceTableInstance->open(filename);
+    m_lineBuffer->getLines();
+    m_cursor->clearUndoAndRedoStacks();
+    m_cursor->setCoords({1, 1});
+    m_scroll->updateScroll(m_width, m_height);
+    m_scroll->updateMaxScroll(m_width, m_height);
+
+    return true;
 }
 
 void TextBox::moveCursorRight(bool shift) {
@@ -460,6 +490,11 @@ float TextBox::getWidth() const { return m_width; }
 
 float TextBox::getHeight() const { return m_height; }
 
+ImVec2 TextBox::getTextBoxPosition() const {
+    auto screenPosition = ImGui::GetCursorScreenPos();
+    return {screenPosition.x + m_topLeftMargin.x, screenPosition.y + m_topLeftMargin.y};
+}
+
 const MyRectangle &TextBox::getHScrollbarRect() const { return m_scroll->getHScrollbarRect(); }
 
 const MyRectangle &TextBox::getVScrollbarRect() const { return m_scroll->getVScrollbarRect(); }
@@ -468,12 +503,14 @@ float TextBox::getScrollbarSize() const { return m_scrollbarSize; }
 
 Cursor *TextBox::getCursor() const { return m_cursor; }
 
+bool TextBox::isSelectionActive() const { return m_selection->getActive(); }
+
 void TextBox::setWidth(float width) { m_width = width; }
 
 void TextBox::setHeight(float height) { m_height = height; }
 
 inline void TextBox::drawRectangle(ImVec2 currentPosition, float& lineHeight) {
-    auto screenPosition = ImGui::GetCursorScreenPos();
+    auto screenPosition = getTextBoxPosition();
     auto topLeft = currentPosition;
     auto bottomRight = ImVec2(topLeft.x + m_width, topLeft.y + lineHeight);
 
@@ -488,7 +525,7 @@ inline void TextBox::drawRectangle(ImVec2 currentPosition, float& lineHeight) {
 void TextBox::drawCursor() {
     m_cursor->calculateWidth();
 
-    auto topLeft = m_cursor->getCursorPosition(ImGui::GetCursorScreenPos());
+    auto topLeft = m_cursor->getCursorPosition(getTextBoxPosition());
     topLeft.x -= m_scroll->getXScroll();
     topLeft.y -= m_scroll->getYScroll();
 
@@ -497,15 +534,18 @@ void TextBox::drawCursor() {
     ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getCursorColor());
 }
 
+
+// Draws both scrollbars
 void TextBox::drawScrollBars() {
     drawHorizontalScrollbar();
     drawVerticalScrollbar();
-    auto screenPosition = ImGui::GetCursorScreenPos();
+    auto screenPosition = getTextBoxPosition();
     auto topLeft = ImVec2(screenPosition.x + m_width, screenPosition.y + m_height);
     auto bottomRight = ImVec2(topLeft.x + m_scrollbarSize, topLeft.y + m_scrollbarSize);
     ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getScrollbarPrimaryColor());
 }
 
+// Draws the entire horizontal scrollbar
 void TextBox::drawHorizontalScrollbar() {
     updateHScrollbarRect();
     drawHScrollbarRect();
@@ -518,6 +558,7 @@ void TextBox::drawHorizontalScrollbar() {
     }
 }
 
+// Draws the entire vertical scrollbar
 void TextBox::drawVerticalScrollbar() {
     updateVScrollbarRect();
     drawVScrollbarRect();
@@ -530,6 +571,7 @@ void TextBox::drawVerticalScrollbar() {
     }
 }
 
+// Draw the horizontal scrollbar rectangle
 void TextBox::drawHScrollbarRect() {
     auto rect = m_scroll->getHScrollbarRect();
     auto topLeft = rect.getTopLeft();
@@ -539,6 +581,7 @@ void TextBox::drawHScrollbarRect() {
     ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y), ImVec2(bottomRight.x , bottomRight.y), m_theme->getScrollbarSecondaryColor());
 }
 
+// Draw the vertical scrollbar rectangle
 void TextBox::drawVScrollbarRect() {
     auto rect = m_scroll->getVScrollbarRect();
     auto topLeft = rect.getTopLeft();
@@ -552,20 +595,23 @@ void TextBox::drawRect(const MyRectangle &rect, const ImColor& color) {
     ImGui::GetWindowDrawList()->AddRectFilled(rect.getTopLeft(), rect.getBottomRight(), color);
 }
 
+// Updates the horizontal scrollbar rectangle
 void TextBox::updateHScrollbarRect() {
-    auto screenPosition = ImGui::GetCursorScreenPos();
+    auto screenPosition = getTextBoxPosition();
     auto topLeft = ImVec2(screenPosition.x + m_scrollbarSize, screenPosition.y + m_height);
     auto bottomRight = ImVec2(topLeft.x + m_width - m_scrollbarSize, topLeft.y + m_scrollbarSize);
     m_scroll->setHScrollbarRect(MyRectangle(topLeft, bottomRight));
 }
 
+// Updates the vertical scrollbar rectangle
 void TextBox::updateVScrollbarRect() {
-    auto screenPosition = ImGui::GetCursorScreenPos();
+    auto screenPosition = getTextBoxPosition();
     auto topLeft = ImVec2(screenPosition.x + m_width, screenPosition.y + m_scrollbarSize);
     auto bottomRight = ImVec2(topLeft.x + m_scrollbarSize, topLeft.y + m_height - m_scrollbarSize);
     m_scroll->setVScrollbarRect(MyRectangle(topLeft, bottomRight));
 }
 
+// Updates the rectangle coordinates for the horizontal scroll select rectangle
 void TextBox::updateHScrollSelectRect() {
     auto maxXScroll = m_scroll->getMaxXScroll();
     auto xScroll = m_scroll->getXScroll();
@@ -582,6 +628,7 @@ void TextBox::updateHScrollSelectRect() {
     m_scroll->setHScrollSelectRect(MyRectangle(topLeftScrollSelect, bottomRightScrollSelect));
 }
 
+// Updates the rectangle coordinates for the vertical scroll select rectangle
 void TextBox::updateVScrollSelectRect() {
     auto maxYScroll = m_scroll->getMaxYScroll();
     auto yScroll = m_scroll->getYScroll();
@@ -604,8 +651,8 @@ void TextBox::updateTextBoxSize() {
     bool changedWidth = false;
     bool changedHeight = false;
 
-    auto newWidth = ImGui::GetWindowWidth() - m_margin.x;
-    auto newHeight = ImGui::GetWindowHeight() - m_margin.y;
+    auto newWidth = ImGui::GetWindowWidth() - m_bottomRightMargin.x - m_topLeftMargin.x;
+    auto newHeight = ImGui::GetWindowHeight() - m_bottomRightMargin.y - m_topLeftMargin.y;
 
     if (m_width != newWidth) {
         m_width = newWidth;
@@ -629,16 +676,16 @@ bool TextBox::deleteSelection() {
         return false;
 
     updateUndoRedo();
+    m_dirty = true;
 
-    m_pieceTable->flushInsertBuffer();
-    m_pieceTable->flushDeleteBuffer();
+    m_pieceTableInstance->getInstance().flushInsertBuffer();
+    m_pieceTableInstance->getInstance().flushDeleteBuffer();
 
     m_cursor->recordCursorPosition();
 
     auto startIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getStart());
     auto endIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getEnd());
-    //std::cerr << "Deleting from index " << startIndex << " to index " << endIndex << "." << std::endl;
-    m_pieceTable->deleteText(startIndex, endIndex);
+    m_pieceTableInstance->getInstance().deleteText(startIndex, endIndex);
 
     m_lineBuffer->getLines();
     m_cursor->setCoords(m_selection->getStart());
@@ -656,8 +703,8 @@ void TextBox::copySelectionToClipboard() {
 }
 
 void TextBox::updateUndoRedo() {
-    if (!m_pieceTable->isRedoEmpty()) {
-        m_pieceTable->clearUndoAndRedoStacks();
+    if (!m_pieceTableInstance->getInstance().isRedoEmpty()) {
+        m_pieceTableInstance->getInstance().clearUndoAndRedoStacks();
         m_cursor->clearUndoAndRedoStacks();
     }
 }
@@ -665,14 +712,14 @@ void TextBox::updateUndoRedo() {
 TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosition) {
     ImGui::PushFont(m_font->getFont());
 
-    float rows = (mousePosition.y - 10.0f) / ImGui::GetFontSize();
+    float rows = (mousePosition.y - getTextBoxPosition().y) / ImGui::GetFontSize();
     int maxValue = m_lineBuffer->isEmpty() ? 1 : m_lineBuffer->getLinesSize() - 1;
     size_t row = std::min(maxValue, (int) rows);
     auto line = m_lineBuffer->lineAt(row);
 
     size_t column = 1;
 
-    float xCoords = ImGui::GetCursorScreenPos().x - 5.0f;
+    float xCoords = getTextBoxPosition().x - 5.0f;
     size_t i = 0;
     while (i < line.size()) {
         auto advance = ImGui::GetFont()->GetCharAdvance(line.at(i));
@@ -688,6 +735,7 @@ TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosit
 
     return TextCoordinates(row+1, column);
 }
+
 
 
 
