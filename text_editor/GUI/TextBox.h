@@ -8,10 +8,10 @@
 #include "imgui.h"
 
 #include "Cursor.h"
+#include "../File.h"
 #include "Font.h"
 #include "LineBuffer.h"
 #include "MyRectangle.h"
-#include "../PieceTable/PieceTable.h"
 #include "../PieceTable/PieceTableInstance.h"
 #include "Selection.h"
 #include "Scroll.h"
@@ -41,7 +41,7 @@ public:
     void redo();
 
     void newFile();
-    bool open(std::string& filename);
+    bool open(std::string& filePath);
 
     void moveCursorRight(bool shift);
     void moveCursorLeft(bool shift);
@@ -63,7 +63,8 @@ public:
 
     float getWidth() const;
     float getHeight() const;
-    ImVec2 getTextBoxPosition() const;
+    ImVec2 getTopLeft() const;
+    ImVec2 getBottomRight() const;
     const MyRectangle& getHScrollbarRect() const;
     const MyRectangle& getVScrollbarRect() const;
     float getScrollbarSize() const;
@@ -89,12 +90,16 @@ private:
     void updateHScrollSelectRect();
     void updateVScrollSelectRect();
     void drawRect(const MyRectangle& rect, const ImColor& color);
+    void drawStatusBar();
+
+    std::string getStatusBarText();
 
     void updateUndoRedo();
     void updateTextBoxSize();
 private:
     PieceTableInstance* m_pieceTableInstance;
     LineBuffer* m_lineBuffer;
+    File* m_file;
     Cursor* m_cursor;
     Selection* m_selection;
     Scroll* m_scroll;
@@ -106,7 +111,7 @@ private:
     const float m_scrollbarSize = 15.0f;
     const float m_minScrollSelectSize = 20.0f;
     const ImVec2 m_topLeftMargin = {0.0f, 0.0f};
-    const ImVec2 m_bottomRightMargin = {30.0f, 30.0f};
+    const ImVec2 m_bottomRightMargin = {5.0f, 0.0f};
 };
 
 

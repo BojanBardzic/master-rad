@@ -6,7 +6,7 @@
 #include "ThemeManager.h"
 #include <utility>
 
-TextBox::TextBox(float width, float height, std::string fontName, std::string theme) : m_dirty(false) {
+TextBox::TextBox(float width, float height, std::string fontName, std::string theme) : m_dirty(false), m_file(nullptr) {
 
     m_pieceTableInstance = new PieceTableInstance();
     m_lineBuffer = new LineBuffer(m_pieceTableInstance);
@@ -38,7 +38,7 @@ void TextBox::draw() {
     if(!m_scroll->isInit())
         m_scroll->init(m_width, m_height);
 
-    auto cursorScreenPosition = getTextBoxPosition();
+    auto cursorScreenPosition = getTopLeft();
 
     // We track our current position as we draw the lines
     auto currentPosition = cursorScreenPosition;
@@ -106,7 +106,7 @@ void TextBox::draw() {
     auto yOffset = currentPosition.y - cursorScreenPosition.y;
 
     if (yOffset < m_height) {
-      ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(currentPosition.x, currentPosition.y), ImVec2(currentPosition.x + m_width, currentPosition.y + (m_height - yOffset)), m_theme->getBackGroundColor());
+      ImGui::GetWindowDrawList()->AddRectFilled(currentPosition, getBottomRight(), m_theme->getBackGroundColor());
     }
 
     if (m_cursor->getShouldRender())
@@ -114,6 +114,8 @@ void TextBox::draw() {
     m_cursor->updateShouldRender();
 
     drawScrollBars();
+
+    drawStatusBar();
 
     ImGui::PopFont();
 }
@@ -266,14 +268,15 @@ void TextBox::newFile() {
     m_scroll->updateMaxScroll(m_width, m_height);
 }
 
-bool TextBox::open(std::string& filename) {
-    std::ifstream inputFile(filename);
+bool TextBox::open(std::string& filePath) {
+    std::ifstream inputFile(filePath);
 
     if (!inputFile.is_open()) {
         return false;
     }
 
-    m_pieceTableInstance->open(filename);
+    m_file = new File(filePath);
+    m_pieceTableInstance->open(filePath);
     m_lineBuffer->getLines();
     m_cursor->clearUndoAndRedoStacks();
     m_cursor->setCoords({1, 1});
@@ -490,9 +493,14 @@ float TextBox::getWidth() const { return m_width; }
 
 float TextBox::getHeight() const { return m_height; }
 
-ImVec2 TextBox::getTextBoxPosition() const {
+ImVec2 TextBox::getTopLeft() const {
     auto screenPosition = ImGui::GetCursorScreenPos();
     return {screenPosition.x + m_topLeftMargin.x, screenPosition.y + m_topLeftMargin.y};
+}
+
+ImVec2 TextBox::getBottomRight() const {
+    auto topLeft = getTopLeft();
+    return {topLeft.x + m_width, topLeft.y + m_height};
 }
 
 const MyRectangle &TextBox::getHScrollbarRect() const { return m_scroll->getHScrollbarRect(); }
@@ -509,8 +517,66 @@ void TextBox::setWidth(float width) { m_width = width; }
 
 void TextBox::setHeight(float height) { m_height = height; }
 
+// Deletes the text inside a selection if it's active.
+bool TextBox::deleteSelection() {
+    if (!m_selection->getActive())
+        return false;
+
+    updateUndoRedo();
+    m_dirty = true;
+
+    m_pieceTableInstance->getInstance().flushInsertBuffer();
+    m_pieceTableInstance->getInstance().flushDeleteBuffer();
+
+    m_cursor->recordCursorPosition();
+
+    auto startIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getStart());
+    auto endIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getEnd());
+    m_pieceTableInstance->getInstance().deleteText(startIndex, endIndex);
+
+    m_lineBuffer->getLines();
+    m_cursor->setCoords(m_selection->getStart());
+    m_scroll->updateScroll(m_width, m_height);
+    m_scroll->updateMaxScroll(m_width, m_height);
+    m_selection->setActive(false);
+
+    return true;
+}
+
+void TextBox::copySelectionToClipboard() {
+    auto selectionText = m_selection->getSelectionText();
+    ImGui::SetClipboardText(selectionText.c_str());
+}
+
+TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosition) {
+    ImGui::PushFont(m_font->getFont());
+
+    float rows = (mousePosition.y - getTopLeft().y) / ImGui::GetFontSize();
+    int maxValue = m_lineBuffer->isEmpty() ? 1 : m_lineBuffer->getLinesSize() - 1;
+    size_t row = std::min(maxValue, (int) rows);
+    auto line = m_lineBuffer->lineAt(row);
+
+    size_t column = 1;
+
+    float xCoords = getTopLeft().x - 5.0f;
+    size_t i = 0;
+    while (i < line.size()) {
+        auto advance = ImGui::GetFont()->GetCharAdvance(line.at(i));
+        if (mousePosition.x < xCoords + advance) {
+            break;
+        }
+        ++column;
+        xCoords += advance;
+        ++i;
+    }
+
+    ImGui::PopFont();
+
+    return TextCoordinates(row+1, column);
+}
+
 inline void TextBox::drawRectangle(ImVec2 currentPosition, float& lineHeight) {
-    auto screenPosition = getTextBoxPosition();
+    auto screenPosition = getTopLeft();
     auto topLeft = currentPosition;
     auto bottomRight = ImVec2(topLeft.x + m_width, topLeft.y + lineHeight);
 
@@ -525,7 +591,7 @@ inline void TextBox::drawRectangle(ImVec2 currentPosition, float& lineHeight) {
 void TextBox::drawCursor() {
     m_cursor->calculateWidth();
 
-    auto topLeft = m_cursor->getCursorPosition(getTextBoxPosition());
+    auto topLeft = m_cursor->getCursorPosition(getTopLeft());
     topLeft.x -= m_scroll->getXScroll();
     topLeft.y -= m_scroll->getYScroll();
 
@@ -539,7 +605,7 @@ void TextBox::drawCursor() {
 void TextBox::drawScrollBars() {
     drawHorizontalScrollbar();
     drawVerticalScrollbar();
-    auto screenPosition = getTextBoxPosition();
+    auto screenPosition = getTopLeft();
     auto topLeft = ImVec2(screenPosition.x + m_width, screenPosition.y + m_height);
     auto bottomRight = ImVec2(topLeft.x + m_scrollbarSize, topLeft.y + m_scrollbarSize);
     ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getScrollbarPrimaryColor());
@@ -597,7 +663,7 @@ void TextBox::drawRect(const MyRectangle &rect, const ImColor& color) {
 
 // Updates the horizontal scrollbar rectangle
 void TextBox::updateHScrollbarRect() {
-    auto screenPosition = getTextBoxPosition();
+    auto screenPosition = getTopLeft();
     auto topLeft = ImVec2(screenPosition.x + m_scrollbarSize, screenPosition.y + m_height);
     auto bottomRight = ImVec2(topLeft.x + m_width - m_scrollbarSize, topLeft.y + m_scrollbarSize);
     m_scroll->setHScrollbarRect(MyRectangle(topLeft, bottomRight));
@@ -605,7 +671,7 @@ void TextBox::updateHScrollbarRect() {
 
 // Updates the vertical scrollbar rectangle
 void TextBox::updateVScrollbarRect() {
-    auto screenPosition = getTextBoxPosition();
+    auto screenPosition = getTopLeft();
     auto topLeft = ImVec2(screenPosition.x + m_width, screenPosition.y + m_scrollbarSize);
     auto bottomRight = ImVec2(topLeft.x + m_scrollbarSize, topLeft.y + m_height - m_scrollbarSize);
     m_scroll->setVScrollbarRect(MyRectangle(topLeft, bottomRight));
@@ -645,14 +711,28 @@ void TextBox::updateVScrollSelectRect() {
     m_scroll->setVScrollSelectRect(MyRectangle(topLeftScrollSelect, bottomRightScrollSelect));
 }
 
+void TextBox::drawStatusBar() {
+    auto topLeft = getTopLeft();
+    auto textPosition = ImVec2(topLeft.x, topLeft.y + m_height + ImGui::GetFontSize() + 5.0f);
+    auto text = getStatusBarText();
+    ImGui::GetWindowDrawList()->AddText(textPosition, ImColor(255, 255, 255), text.c_str());
+}
+
+std::string TextBox::getStatusBarText() {
+    std::stringstream stream;
+    stream << (m_file == nullptr ? "New file" : m_file->getName()) << (m_dirty ? "*" : " ") << " |  ";
+    stream << "Row: " << m_cursor->getRow() << " Column: " << m_cursor->getCol();
+    return stream.str();
+}
+
 
 // Updates the TextBox size to the size of the window.
 void TextBox::updateTextBoxSize() {
     bool changedWidth = false;
     bool changedHeight = false;
 
-    auto newWidth = ImGui::GetWindowWidth() - m_bottomRightMargin.x - m_topLeftMargin.x;
-    auto newHeight = ImGui::GetWindowHeight() - m_bottomRightMargin.y - m_topLeftMargin.y;
+    auto newWidth = ImGui::GetWindowWidth() - m_bottomRightMargin.x - m_topLeftMargin.x - ImGui::GetCursorScreenPos().x - m_scrollbarSize;
+    auto newHeight = ImGui::GetWindowHeight() - m_bottomRightMargin.y - m_topLeftMargin.y - ImGui::GetCursorScreenPos().y - m_scrollbarSize;
 
     if (m_width != newWidth) {
         m_width = newWidth;
@@ -670,70 +750,12 @@ void TextBox::updateTextBoxSize() {
         m_scroll->updateMaxYScroll(m_height);
 }
 
-// Deletes the text inside a selection if it's active.
-bool TextBox::deleteSelection() {
-    if (!m_selection->getActive())
-        return false;
-
-    updateUndoRedo();
-    m_dirty = true;
-
-    m_pieceTableInstance->getInstance().flushInsertBuffer();
-    m_pieceTableInstance->getInstance().flushDeleteBuffer();
-
-    m_cursor->recordCursorPosition();
-
-    auto startIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getStart());
-    auto endIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getEnd());
-    m_pieceTableInstance->getInstance().deleteText(startIndex, endIndex);
-
-    m_lineBuffer->getLines();
-    m_cursor->setCoords(m_selection->getStart());
-    m_scroll->updateScroll(m_width, m_height);
-    m_scroll->updateMaxScroll(m_width, m_height);
-    m_selection->setActive(false);
-
-    return true;
-}
-
-
-void TextBox::copySelectionToClipboard() {
-    auto selectionText = m_selection->getSelectionText();
-    ImGui::SetClipboardText(selectionText.c_str());
-}
 
 void TextBox::updateUndoRedo() {
     if (!m_pieceTableInstance->getInstance().isRedoEmpty()) {
         m_pieceTableInstance->getInstance().clearUndoAndRedoStacks();
         m_cursor->clearUndoAndRedoStacks();
     }
-}
-
-TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosition) {
-    ImGui::PushFont(m_font->getFont());
-
-    float rows = (mousePosition.y - getTextBoxPosition().y) / ImGui::GetFontSize();
-    int maxValue = m_lineBuffer->isEmpty() ? 1 : m_lineBuffer->getLinesSize() - 1;
-    size_t row = std::min(maxValue, (int) rows);
-    auto line = m_lineBuffer->lineAt(row);
-
-    size_t column = 1;
-
-    float xCoords = getTextBoxPosition().x - 5.0f;
-    size_t i = 0;
-    while (i < line.size()) {
-        auto advance = ImGui::GetFont()->GetCharAdvance(line.at(i));
-        if (mousePosition.x < xCoords + advance) {
-            break;
-        }
-        ++column;
-        xCoords += advance;
-        ++i;
-    }
-
-    ImGui::PopFont();
-
-    return TextCoordinates(row+1, column);
 }
 
 
