@@ -6,7 +6,9 @@
 
 File::File(std::string filePath) : m_path(filePath) {
     m_name = filePath.substr(filePath.find_last_of("\\\\") + 1);
-    m_extension = filePath.substr(filePath.find_last_of('.') + 1);
+
+    auto index = filePath.find_last_of('.');
+    m_extension = index != std::string::npos ? filePath.substr(index + 1) : "";
 }
 
 File::~File() {}

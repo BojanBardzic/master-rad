@@ -13,7 +13,7 @@ public:
     ~PieceTableInstance();
 
     void newFile();
-    void open(std::string& filename);
+    void open(std::string& buffer);
 
     PieceTable& getInstance() const;
 private:

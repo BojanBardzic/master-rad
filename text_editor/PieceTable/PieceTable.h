@@ -21,7 +21,7 @@ public:
     friend std::ostream& operator<<(std::ostream& out, const PieceTable& table);
 
     PieceTable();
-    PieceTable(std::string& filename);
+    PieceTable(std::string& originalBuffer);
     ~PieceTable();
 
     bool insertChar(char c, size_t index);
@@ -35,7 +35,7 @@ public:
     void undo();
     void redo();
 
-    void save(std::string& filename);
+    void save(const std::string& filename);
 
     bool flushInsertBuffer();
     bool flushDeleteBuffer();
@@ -43,6 +43,7 @@ public:
     void clearUndoAndRedoStacks();
 
     size_t getSize() const;
+    bool isUndoEmpty() const;
     bool isRedoEmpty() const;
 private:
     void append(PieceDescriptor* piece);

@@ -18,9 +18,9 @@ void PieceTableInstance::newFile() {
     delete oldTable;
 }
 
-void PieceTableInstance::open(std::string &filename) {
+void PieceTableInstance::open(std::string &buffer) {
     auto oldTable = m_pieceTable;
-    m_pieceTable = new PieceTable(filename);
+    m_pieceTable = new PieceTable(buffer);
     delete oldTable;
 }
 

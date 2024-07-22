@@ -13,6 +13,7 @@ TextBox::TextBox(float width, float height, std::string fontName, std::string th
     m_cursor = new Cursor(m_lineBuffer);
     m_selection = new Selection(m_lineBuffer);
     m_font = new Font(fontName);
+    m_statusBarFont = new Font("Segoe UI", 19.0f);
     m_scroll = new Scroll(m_lineBuffer, m_cursor, m_font);
     m_theme = ThemeManager::getTheme(theme);
 
@@ -269,14 +270,17 @@ void TextBox::newFile() {
 }
 
 bool TextBox::open(std::string& filePath) {
-    std::ifstream inputFile(filePath);
-
-    if (!inputFile.is_open()) {
+    std::string buffer;
+    // Try to read from the file path
+    auto success = readFromFile(buffer, filePath);
+    if (!success)
         return false;
-    }
 
+    // If the read was successful update the filePath and pass the buffer contents to the piece table
     m_file = new File(filePath);
-    m_pieceTableInstance->open(filePath);
+    m_pieceTableInstance->open(buffer);
+
+    // Update the state of the text box
     m_lineBuffer->getLines();
     m_cursor->clearUndoAndRedoStacks();
     m_cursor->setCoords({1, 1});
@@ -284,6 +288,23 @@ bool TextBox::open(std::string& filePath) {
     m_scroll->updateMaxScroll(m_width, m_height);
 
     return true;
+}
+
+bool TextBox::save() {
+    m_dirty = false;
+
+    m_pieceTableInstance->getInstance().flushInsertBuffer();
+    m_pieceTableInstance->getInstance().flushDeleteBuffer();
+
+    return saveToFile();
+}
+
+bool TextBox::saveAs(std::string &filePath) {
+    auto oldFile = m_file;
+    m_file = new File(filePath);
+    delete oldFile;
+
+    return save();
 }
 
 void TextBox::moveCursorRight(bool shift) {
@@ -511,7 +532,15 @@ float TextBox::getScrollbarSize() const { return m_scrollbarSize; }
 
 Cursor *TextBox::getCursor() const { return m_cursor; }
 
+File *TextBox::getFile() const { return m_file; }
+
 bool TextBox::isSelectionActive() const { return m_selection->getActive(); }
+
+bool TextBox::isDirty() const { return m_dirty; }
+
+bool TextBox::isUndoEmpty() const { return m_pieceTableInstance->getInstance().isUndoEmpty(); }
+
+bool TextBox::isRedoEmpty() const { return m_pieceTableInstance->getInstance().isRedoEmpty(); }
 
 void TextBox::setWidth(float width) { m_width = width; }
 
@@ -712,19 +741,70 @@ void TextBox::updateVScrollSelectRect() {
 }
 
 void TextBox::drawStatusBar() {
+    auto textFontSize = ImGui::GetFontSize();
+
+    ImGui::PushFont(m_statusBarFont->getFont());
+
     auto topLeft = getTopLeft();
-    auto textPosition = ImVec2(topLeft.x, topLeft.y + m_height + ImGui::GetFontSize() + 5.0f);
+    auto textPosition = ImVec2(topLeft.x, topLeft.y + m_height + textFontSize + 5.0f);
     auto text = getStatusBarText();
     ImGui::GetWindowDrawList()->AddText(textPosition, ImColor(255, 255, 255), text.c_str());
+
+    ImGui::PopFont();
 }
 
 std::string TextBox::getStatusBarText() {
     std::stringstream stream;
-    stream << (m_file == nullptr ? "New file" : m_file->getName()) << (m_dirty ? "*" : " ") << " |  ";
+    stream << (m_file == nullptr ? "Untitled" : m_file->getName()) << (m_dirty ? "*" : " ") << " |  ";
     stream << "Row: " << m_cursor->getRow() << " Column: " << m_cursor->getCol();
     return stream.str();
 }
 
+// Reads from the current file and writes the contents into buffer
+bool TextBox::readFromFile(std::string& buffer, const std::string& filePath) {
+    std::ifstream input(filePath);
+
+    if (!input.is_open())
+        return false;
+
+    try {
+        std::getline(input, buffer, '\0');
+    } catch (std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return false;
+    }
+
+    input.close();
+    return true;
+}
+
+// Saves the text box contents to the current file
+bool TextBox::saveToFile() {
+    std::string backupBuffer;
+    readFromFile(backupBuffer, m_file->getPath());
+
+    std::ofstream output(m_file->getPath());
+    if (!output.is_open())
+        return false;
+
+    try {
+        output << m_pieceTableInstance->getInstance();
+        output << '\0';
+    } catch (std::exception e) {
+        std::cerr << e.what() << std::endl;
+        output.close();
+
+        std::ofstream backupOutput(m_file->getPath());
+        backupOutput << backupBuffer;
+        backupOutput << '\0';
+        backupOutput.close();
+
+        return false;
+    }
+
+    output.close();
+    return true;
+}
 
 // Updates the TextBox size to the size of the window.
 void TextBox::updateTextBoxSize() {
@@ -757,6 +837,9 @@ void TextBox::updateUndoRedo() {
         m_cursor->clearUndoAndRedoStacks();
     }
 }
+
+
+
 
 
 

@@ -6,7 +6,6 @@
 #define TEXT_EDITOR_TEXTEDITOR_H
 
 #include "TextBox.h"
-#include "../Input/InputHandler.h"
 #include <cstdlib>
 #include <sstream>
 #include <windows.h>
@@ -20,10 +19,26 @@ public:
     void draw();
 private:
     void drawMenu();
+
+    void handleKeyboardInput();
+    void handleMouseInput();
+    inline bool isKeyPressed(ImGuiKey&& key, bool repeat = true);
+    bool isInsideTextBox(ImVec2& mousePosition);
+    bool isInsideHorizontalScrollbar(ImVec2& mousePosition);
+    bool isInsideVerticalScrollbar(ImVec2& mousePosition);
+
+    void newFile();
+    void open();
+    void save();
+    void saveAs();
+
     std::string openFileDialog();
+    std::string saveFileDialog();
+    int fileNotSavedWarningMessageBox();
+    int handleFileNotSaved();
+    std::string wStringToString(const std::wstring& wstring);
 
     TextBox* m_textBox;
-    InputHandler* m_inputHandler;
     Font* m_menuFont;
     bool m_clickedOnMenu;
     const std::string m_menuFontName = "Segoe UI";

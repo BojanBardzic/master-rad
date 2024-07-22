@@ -108,18 +108,13 @@ PieceTable::PieceTable() : m_size(0) {
     m_deleteBuffer = new DeleteBuffer();
 }
 
-PieceTable::PieceTable(std::string& filename) {
-    m_originalBuffer = new std::string("");
+PieceTable::PieceTable(std::string& originalBuffer) : m_size(0) {
+    m_originalBuffer = new std::string(originalBuffer);
     m_addBuffer = new std::string("");
     m_insertBuffer = new InsertBuffer();
     m_deleteBuffer = new DeleteBuffer();
 
-    std::ifstream input(filename);
-
-    std::getline(input, *m_originalBuffer, '\0');
-    insert(SourceType::Original, 0, m_originalBuffer->size(), 0);
-
-    input.close();
+    insert(SourceType::Original, 0, m_originalBuffer->size(), 0, true);
 }
 
 PieceTable::~PieceTable() {
@@ -176,6 +171,7 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
         if (isPieceOnEndOffBuffer(endPiece)) {
             endPiece->setLength(endPiece->getLength() + length);
         } else {
+            std::cerr << "Appending" << std::endl;
             append(newPiece);
         }
     } else {
@@ -382,9 +378,14 @@ void PieceTable::redo() {
     reverseOperation(m_redoStack, m_undoStack);
 }
 
+void PieceTable::save(const std::string &filename) {
+
+}
+
 bool PieceTable::flushInsertBuffer() {
     if (!m_insertBuffer->isFlushed()) {
         std::cerr << "Flushing buffer with index: " << m_insertBuffer->getStartIndex() << std::endl;
+        std::cerr << "Table Size: " << m_size << std::endl;
         std::cerr << "Content: " << m_insertBuffer->getContent() << std::endl;
         insert(m_insertBuffer->getContent(), m_insertBuffer->getStartIndex());
         m_insertBuffer->clearContent();
@@ -413,6 +414,8 @@ void PieceTable::clearUndoAndRedoStacks() {
 }
 
 size_t PieceTable::getSize() const { return m_size; }
+
+bool PieceTable::isUndoEmpty() const { return m_undoStack.empty(); }
 
 bool PieceTable::isRedoEmpty() const { return m_redoStack.empty(); }
 
@@ -537,5 +540,7 @@ void PieceTable::clearRedoStack() {
         m_redoStack.pop();
     }
 }
+
+
 
 
