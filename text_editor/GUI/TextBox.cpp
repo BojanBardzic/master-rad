@@ -532,7 +532,9 @@ float TextBox::getScrollbarSize() const { return m_scrollbarSize; }
 
 Cursor *TextBox::getCursor() const { return m_cursor; }
 
-File *TextBox::getFile() const { return m_file; }
+Theme* TextBox::getTheme() const { return m_theme; }
+
+File* TextBox::getFile() const { return m_file; }
 
 bool TextBox::isSelectionActive() const { return m_selection->getActive(); }
 
@@ -545,6 +547,8 @@ bool TextBox::isRedoEmpty() const { return m_pieceTableInstance->getInstance().i
 void TextBox::setWidth(float width) { m_width = width; }
 
 void TextBox::setHeight(float height) { m_height = height; }
+
+void TextBox::setTheme(Theme* theme) { m_theme = theme; }
 
 // Deletes the text inside a selection if it's active.
 bool TextBox::deleteSelection() {
@@ -837,6 +841,10 @@ void TextBox::updateUndoRedo() {
         m_cursor->clearUndoAndRedoStacks();
     }
 }
+
+
+
+
 
 
 

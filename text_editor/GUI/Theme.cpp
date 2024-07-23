@@ -4,9 +4,9 @@
 
 #include "Theme.h"
 
-Theme::Theme(ImColor backgroundColor, ImColor textColor, ImColor cursorColor, ImColor selectColor,
+Theme::Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImColor cursorColor, ImColor selectColor,
              ImColor selectTextColor, ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor)
-             : m_backgroundColor(backgroundColor), m_textColor(textColor), m_cursorColor(cursorColor),
+             : m_name(name), m_backgroundColor(backgroundColor), m_textColor(textColor), m_cursorColor(cursorColor),
                m_selectColor(selectColor), m_selectTextColor(selectTextColor),
                m_scrollbarPrimaryColor(scrollbarPrimaryColor), m_scrollbarSecondaryColor(scrollbarSecondaryColor) {}
 

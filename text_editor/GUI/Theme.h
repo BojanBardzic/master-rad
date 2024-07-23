@@ -6,13 +6,15 @@
 #define TEXT_EDITOR_THEME_H
 
 #include "imgui.h"
+#include <string>
 
 class Theme {
 public:
-    Theme(ImColor backgroundColor, ImColor textColor, ImColor cursorColor, ImColor selectColor,
+    Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImColor cursorColor, ImColor selectColor,
           ImColor selectTextColor, ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor);
     ~Theme();
 
+    const std::string& getName() const;
     const ImColor& getBackGroundColor() const;
     const ImColor& getTextColor() const;
     const ImColor& getCursorColor() const;
@@ -21,6 +23,7 @@ public:
     const ImColor& getScrollbarPrimaryColor() const;
     const ImColor& getScrollbarSecondaryColor() const;
 private:
+    std::string m_name;
     ImColor m_backgroundColor;
     ImColor m_textColor;
     ImColor m_cursorColor;

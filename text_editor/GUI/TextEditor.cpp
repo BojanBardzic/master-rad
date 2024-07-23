@@ -83,6 +83,21 @@ void TextEditor::drawMenu() {
             m_clickedOnMenu = false;
         }
 
+        if (ImGui::BeginMenu("Theme")) {
+            m_clickedOnMenu = true;
+
+            if (ImGui::MenuItem("Light", "", false, m_textBox->getTheme() != ThemeManager::getTheme("Light"))) {
+                m_textBox->setTheme(ThemeManager::getTheme("Light"));
+            }
+            if (ImGui::MenuItem("Dark", "", false, m_textBox->getTheme() != ThemeManager::getTheme("Dark"))) {
+                m_textBox->setTheme(ThemeManager::getTheme("Dark"));
+            }
+
+            ImGui::EndMenu();
+        } else {
+            m_clickedOnMenu = false;
+        }
+
         ImGui::EndMainMenuBar();
     }
 

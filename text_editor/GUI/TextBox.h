@@ -71,6 +71,7 @@ public:
     const MyRectangle& getVScrollbarRect() const;
     float getScrollbarSize() const;
     Cursor* getCursor() const;
+    Theme* getTheme() const;
     File* getFile() const;
     bool isSelectionActive() const;
     bool isDirty() const;
@@ -79,6 +80,7 @@ public:
 
     void setWidth(float width);
     void setHeight(float height);
+    void setTheme(Theme* theme);
 private:
     bool deleteSelection();
     void copySelectionToClipboard();

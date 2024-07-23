@@ -6,6 +6,7 @@
 #define TEXT_EDITOR_TEXTEDITOR_H
 
 #include "TextBox.h"
+#include "ThemeManager.h"
 #include <cstdlib>
 #include <sstream>
 #include <windows.h>
