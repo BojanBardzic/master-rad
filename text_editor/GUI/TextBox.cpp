@@ -6,7 +6,7 @@
 #include "ThemeManager.h"
 #include <utility>
 
-TextBox::TextBox(float width, float height, std::string fontName, std::string theme) : m_dirty(false), m_file(nullptr) {
+TextBox::TextBox(float width, float height, const std::string& fontName, const std::string& theme) : m_dirty(false), m_file(nullptr) {
 
     m_pieceTableInstance = new PieceTableInstance();
     m_lineBuffer = new LineBuffer(m_pieceTableInstance);
@@ -28,6 +28,7 @@ TextBox::TextBox(float width, float height, std::string fontName, std::string th
 TextBox::~TextBox() {
     delete m_scroll;
     delete m_font;
+    delete m_statusBarFont;
     delete m_selection;
     delete m_cursor;
     delete m_lineBuffer;
@@ -121,32 +122,27 @@ void TextBox::draw() {
     ImGui::PopFont();
 }
 
-// Enters single character in the pieceTable
+// Enters single character in the pieceTable and updates the state of the text box
 void TextBox::enterChar(char c) {
     updateUndoRedo();
-    m_dirty = true;
     deleteSelection();
 
     m_pieceTableInstance->getInstance().flushDeleteBuffer();
 
-    auto coords = m_cursor->getCoords();
-    size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
-
-    auto initialized = m_pieceTableInstance->getInstance().insertChar(c, index);
+    auto initialized = insertCharToPieceTable(c);
 
     if (initialized)
         m_cursor->recordCursorPosition();
 
-    m_lineBuffer->getLines();
+    updateStateForTextChange();
+
     m_cursor->moveRight();
-    m_scroll->updateScroll(m_width, m_height);
-    m_scroll->updateMaxScroll(m_width, m_height);
+    updateStateForCursorMovement();
 }
 
 // Enters a text in the piece table and updates the state of the text box
 void TextBox::enterText(std::string str) {
     updateUndoRedo();
-    m_dirty = true;
     deleteSelection();
 
     m_pieceTableInstance->getInstance().flushInsertBuffer();
@@ -157,13 +153,13 @@ void TextBox::enterText(std::string str) {
     auto coords = m_cursor->getCoords();
     size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
     m_pieceTableInstance->getInstance().insert(std::move(str), index);
-    m_lineBuffer->getLines();
+
+    updateStateForTextChange();
 
     auto newCoords = m_lineBuffer->bufferIndexToTextCoordinates(index + size);
     m_cursor->setCoords(newCoords);
 
-    m_scroll->updateScroll(m_width, m_height);
-    m_scroll->updateMaxScroll(m_width, m_height);
+    updateStateForCursorMovement();
 }
 
 // Preforms a backspace operation on the piece table and updates the state of the text box
@@ -178,18 +174,68 @@ void TextBox::backspace() {
     size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
     if (index != 0) {
         updateUndoRedo();
-        m_dirty = true;
         m_pieceTableInstance->getInstance().flushInsertBuffer();
         auto initialized = m_pieceTableInstance->getInstance().backspace(index);
 
         if (initialized)
             m_cursor->recordCursorPosition();
 
+        updateStateForTextChange();
+
         m_cursor->moveLeft();
-        m_lineBuffer->getLines();
-        m_scroll->updateScroll(m_width, m_height);
-        m_scroll->updateMaxScroll(m_width, m_height);
+
+        updateStateForCursorMovement();
     }
+}
+
+// Handles all the cases for the tab and tab + shift commands
+void TextBox::tab(bool shift) {
+    updateUndoRedo();
+    bool changed = false;
+    bool cursorMoved = false;
+
+    m_pieceTableInstance->getInstance().flushInsertBuffer();
+    m_pieceTableInstance->getInstance().flushDeleteBuffer();
+
+    // If there is an active selection and its multiline
+    if (m_selection->getActive() && m_selection->getStart().m_row < m_selection->getEnd().m_row) {
+        if (shift) {
+            changed = deleteTabFromSelectedRows();
+            if (changed) {
+                m_cursor->moveLeft();
+                m_selection->moveEndLeft();
+                cursorMoved = true;
+            }
+        } else {
+            changed = addTabToSelectedRows();
+            m_cursor->moveRight();
+            m_selection->moveEndRight();
+            cursorMoved = true;
+        }
+    } else {
+
+        if (shift) {
+            changed = reverseTab();
+            if (changed) {
+                m_cursor->recordCursorPosition();
+                m_cursor->moveLeft();
+                cursorMoved = true;
+            }
+        } else {
+            deleteSelection();
+            insertCharToPieceTable('\t');
+
+            m_cursor->recordCursorPosition();
+            m_cursor->moveRight();
+            cursorMoved = true;
+            changed = true;
+        }
+    }
+
+    if (changed)
+        updateStateForTextChange();
+    if (cursorMoved)
+        updateStateForCursorMovement();
 }
 
 // Deletes the char right of the cursor if there is one
@@ -204,16 +250,40 @@ void TextBox::deleteChar() {
     size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
     if (index != m_lineBuffer->getCharSize()) {
         updateUndoRedo();
-        m_dirty = true;
         m_pieceTableInstance->getInstance().flushInsertBuffer();
         auto initialized = m_pieceTableInstance->getInstance().charDelete(index);
 
         if (initialized)
             m_cursor->recordCursorPosition();
 
-        m_lineBuffer->getLines();
-        m_scroll->updateMaxScroll(m_width, m_height);
+        updateStateForTextChange();
     }
+}
+
+void TextBox::deleteLine() {
+    updateUndoRedo();
+    m_pieceTableInstance->getInstance().flushInsertBuffer();
+    m_pieceTableInstance->getInstance().flushDeleteBuffer();
+
+    if (m_selection->getActive()) {
+        deleteSelection();
+        return;
+    }
+
+    auto row = m_cursor->getRow();
+    auto line = m_lineBuffer->lineAt(row-1);
+    auto index = m_lineBuffer->textCoordinatesToBufferIndex({row, 1});
+    auto offset = line.size();
+
+    if (row != m_lineBuffer->getLinesSize())
+        offset++;
+
+    m_cursor->recordCursorPosition();
+    m_pieceTableInstance->getInstance().deleteText(index, index+offset);
+    updateStateForTextChange();
+
+    m_cursor->setCoords({std::min(row, m_lineBuffer->getLinesSize()), 1});
+    updateStateForCursorMovement();
 }
 
 void TextBox::selectAll() {
@@ -312,7 +382,7 @@ void TextBox::moveCursorRight(bool shift) {
     auto oldCoords = m_cursor->getCoords();
 
     m_cursor->moveRight();
-    m_scroll->updateScroll(m_width, m_height);
+    updateStateForCursorMovement();
 
     auto newCoords = m_cursor->getCoords();
 
@@ -330,7 +400,7 @@ void TextBox::moveCursorLeft(bool shift) {
     auto oldCoords = m_cursor->getCoords();
 
     m_cursor->moveLeft();
-    m_scroll->updateScroll(m_width, m_height);
+    updateStateForCursorMovement();
 
     auto newCoords = m_cursor->getCoords();
 
@@ -348,7 +418,7 @@ void TextBox::moveCursorUp(bool shift) {
     auto oldCoords = m_cursor->getCoords();
 
     m_cursor->moveUp();
-    m_scroll->updateScroll(m_width, m_height);
+    updateStateForCursorMovement();
 
     auto newCoords = m_cursor->getCoords();
 
@@ -363,7 +433,7 @@ void TextBox::moveCursorDown(bool shift) {
     auto oldCoords = m_cursor->getCoords();
 
     m_cursor->moveDown();
-    m_scroll->updateScroll(m_width, m_height);
+    updateStateForCursorMovement();
 
     auto newCoords = m_cursor->getCoords();
 
@@ -550,13 +620,20 @@ void TextBox::setHeight(float height) { m_height = height; }
 
 void TextBox::setTheme(Theme* theme) { m_theme = theme; }
 
+// Inserts a char into the piece table at the current cursor position
+// and returns whether the add buffer was initialized after being flushed
+bool TextBox::insertCharToPieceTable(char c) {
+    auto coords = m_cursor->getCoords();
+    size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
+    return m_pieceTableInstance->getInstance().insertChar(c, index);
+}
+
 // Deletes the text inside a selection if it's active.
 bool TextBox::deleteSelection() {
     if (!m_selection->getActive())
         return false;
 
     updateUndoRedo();
-    m_dirty = true;
 
     m_pieceTableInstance->getInstance().flushInsertBuffer();
     m_pieceTableInstance->getInstance().flushDeleteBuffer();
@@ -567,10 +644,11 @@ bool TextBox::deleteSelection() {
     auto endIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getEnd());
     m_pieceTableInstance->getInstance().deleteText(startIndex, endIndex);
 
-    m_lineBuffer->getLines();
+    updateStateForTextChange();
+
     m_cursor->setCoords(m_selection->getStart());
-    m_scroll->updateScroll(m_width, m_height);
-    m_scroll->updateMaxScroll(m_width, m_height);
+    updateStateForCursorMovement();
+
     m_selection->setActive(false);
 
     return true;
@@ -605,7 +683,75 @@ TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosit
 
     ImGui::PopFont();
 
-    return TextCoordinates(row+1, column);
+    return {row+1, column};
+}
+
+// Adds a tab character in front of every selected row
+// Returns whether there were added tabs
+bool TextBox::addTabToSelectedRows() {
+    auto beginRow = m_selection->getStart().m_row;
+    auto endRow = m_selection->getEnd().m_row;
+
+    auto index = m_lineBuffer->textCoordinatesToBufferIndex({beginRow, 1});
+    m_cursor->recordCursorPosition();
+    m_pieceTableInstance->getInstance().insert("\t", index);
+
+    for (size_t i=beginRow-1; i<endRow-1; ++i) {
+        auto line = m_lineBuffer->lineAt(i);
+        auto lineSize = line.empty() ? 0 : line.size() + 1;
+        index += lineSize + 1;
+        if (!m_lineBuffer->lineAt(i+1).empty()) {
+            m_cursor->recordCursorPosition();
+            m_pieceTableInstance->getInstance().insert("\t", index);
+        }
+    }
+
+    return true;
+}
+
+// Deletes a tab from the selected rows
+// Returns whether there were deleted tabs
+bool TextBox::deleteTabFromSelectedRows() {
+    auto beginRow = m_selection->getStart().m_row;
+    auto endRow = m_selection->getEnd().m_row;
+
+    bool deleted = false;
+
+    auto index = m_lineBuffer->textCoordinatesToBufferIndex({beginRow, 1});
+    if (m_lineBuffer->lineStarsWithTab(beginRow-1)) {
+        deleted = true;
+        m_cursor->recordCursorPosition();
+        m_pieceTableInstance->getInstance().deleteText(index, index + 1);
+        --index;
+    }
+
+    for (size_t i=beginRow-1; i<endRow-1; ++i) {
+        auto line = m_lineBuffer->lineAt(i);
+        index += line.size() + 1;
+
+
+        if (m_lineBuffer->lineStarsWithTab(i+1)) {
+            deleted = true;
+            m_cursor->recordCursorPosition();
+            m_pieceTableInstance->getInstance().deleteText(index, index+1);
+            --index;
+        }
+    }
+
+    return deleted;
+}
+
+// Removes a tab character from the beginning of the line if there is one
+// Returns whether anything was deleted
+bool TextBox::reverseTab() {
+    auto row = m_cursor->getRow();
+    auto line = m_lineBuffer->lineAt(row-1);
+    if (!line.empty() && line[0] == '\t') {
+        auto index = m_lineBuffer->textCoordinatesToBufferIndex({row, 1});
+        m_pieceTableInstance->getInstance().deleteText(index, index+1);
+        return true;
+    }
+    return false;
 }
 
 inline void TextBox::drawRectangle(ImVec2 currentPosition, float& lineHeight) {
@@ -745,12 +891,12 @@ void TextBox::updateVScrollSelectRect() {
 }
 
 void TextBox::drawStatusBar() {
-    auto textFontSize = ImGui::GetFontSize();
+    float offset = 15.0f;
 
     ImGui::PushFont(m_statusBarFont->getFont());
 
     auto topLeft = getTopLeft();
-    auto textPosition = ImVec2(topLeft.x, topLeft.y + m_height + textFontSize + 5.0f);
+    auto textPosition = ImVec2(topLeft.x, topLeft.y + m_height + offset + 5.0f);
     auto text = getStatusBarText();
     ImGui::GetWindowDrawList()->AddText(textPosition, ImColor(255, 255, 255), text.c_str());
 
@@ -794,7 +940,7 @@ bool TextBox::saveToFile() {
     try {
         output << m_pieceTableInstance->getInstance();
         output << '\0';
-    } catch (std::exception e) {
+    } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
         output.close();
 
@@ -808,6 +954,14 @@ bool TextBox::saveToFile() {
 
     output.close();
     return true;
+}
+
+// Clears the undo and redo stacks if we are in a past state
+void TextBox::updateUndoRedo() {
+    if (!m_pieceTableInstance->getInstance().isRedoEmpty()) {
+        m_pieceTableInstance->getInstance().clearUndoAndRedoStacks();
+        m_cursor->clearUndoAndRedoStacks();
+    }
 }
 
 // Updates the TextBox size to the size of the window.
@@ -834,13 +988,21 @@ void TextBox::updateTextBoxSize() {
         m_scroll->updateMaxYScroll(m_height);
 }
 
-
-void TextBox::updateUndoRedo() {
-    if (!m_pieceTableInstance->getInstance().isRedoEmpty()) {
-        m_pieceTableInstance->getInstance().clearUndoAndRedoStacks();
-        m_cursor->clearUndoAndRedoStacks();
-    }
+void TextBox::updateStateForTextChange() {
+    m_lineBuffer->getLines();
+    m_scroll->updateMaxScroll(m_width, m_height);
+    m_dirty = true;
 }
+
+void TextBox::updateStateForCursorMovement() {
+    m_scroll->updateScroll(m_width, m_height);
+}
+
+
+
+
+
+
 
 
 

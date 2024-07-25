@@ -23,6 +23,7 @@ private:
 
     void handleKeyboardInput();
     void handleMouseInput();
+
     inline bool isKeyPressed(ImGuiKey&& key, bool repeat = true);
     bool isInsideTextBox(ImVec2& mousePosition);
     bool isInsideHorizontalScrollbar(ImVec2& mousePosition);
@@ -33,16 +34,21 @@ private:
     void save();
     void saveAs();
 
-    std::string openFileDialog();
-    std::string saveFileDialog();
+    static std::string openFileDialog();
+    static std::string saveFileDialog();
     int fileNotSavedWarningMessageBox();
     int handleFileNotSaved();
-    std::string wStringToString(const std::wstring& wstring);
+
+    static std::string wStringToString(const std::wstring& wstring);
 
     TextBox* m_textBox;
     Font* m_menuFont;
     bool m_clickedOnMenu;
+    const std::string m_textFontName = "Consolas";
     const std::string m_menuFontName = "Segoe UI";
+    const std::string m_defaultThemeName = "Light";
+    const float m_defaultWidth = 200.0f;
+    const float m_defaultHeight = 400.0f;
     const float m_menuFontSize = 19.0f;
     const static ImGuiWindowFlags m_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove
                                             | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar;

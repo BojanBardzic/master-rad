@@ -16,10 +16,11 @@ public:
     ~LineBuffer();
 
     void getLines();
-    size_t textCoordinatesToBufferIndex(const TextCoordinates& coords);
+    size_t textCoordinatesToBufferIndex(const TextCoordinates& coords) const;
     TextCoordinates bufferIndexToTextCoordinates(const size_t& index);
 
     std::string& lineAt(size_t index) const;
+    bool lineStarsWithTab(const size_t lineIndex) const;
     const size_t getLinesSize() const;
     const size_t getCharSize() const;
     bool isEmpty() const;

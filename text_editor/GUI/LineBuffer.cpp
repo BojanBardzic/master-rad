@@ -4,7 +4,7 @@
 
 #include "LineBuffer.h"
 
-std::string LineBuffer::m_emptyLine = "";
+std::string LineBuffer::m_emptyLine;
 
 LineBuffer::LineBuffer(PieceTableInstance *pieceTableInstance) : m_pieceTableInstance(pieceTableInstance) {
     m_lines = new std::vector<std::string>();
@@ -48,7 +48,7 @@ void LineBuffer::getLines() {
     updateCharSize();
 }
 
-size_t LineBuffer::textCoordinatesToBufferIndex(const TextCoordinates &coords) {
+size_t LineBuffer::textCoordinatesToBufferIndex(const TextCoordinates &coords) const {
     size_t index = 0;
 
     for (size_t i=0; i<coords.m_row-1; i++) {
@@ -79,11 +79,17 @@ TextCoordinates LineBuffer::bufferIndexToTextCoordinates(const size_t& index) {
 }
 
 std::string& LineBuffer::lineAt(size_t index) const {
-    if (index >= 0 && index < m_lines->size()) {
+    if (index < m_lines->size())
         return m_lines->at(index);
-    } else {
+    else
         return m_emptyLine;
-    }
+}
+
+bool LineBuffer::lineStarsWithTab(const size_t lineIndex) const {
+    if (isEmpty() || lineIndex >= getLinesSize() || m_lines->at(lineIndex).empty())
+        return false;
+    else
+        return m_lines->at(lineIndex).at(0) == '\t';
 }
 
 const size_t LineBuffer::getLinesSize() const { return m_lines->size(); }

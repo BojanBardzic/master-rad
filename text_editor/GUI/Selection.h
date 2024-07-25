@@ -15,6 +15,8 @@ public:
 
     void update(TextCoordinates& oldCoords, TextCoordinates& newCoords);
     void selectAll(TextCoordinates& newCoords);
+    void moveEndRight();
+    void moveEndLeft();
 
     std::string getSelectionText();
 

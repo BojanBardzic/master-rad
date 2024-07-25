@@ -30,6 +30,8 @@ public:
 
     bool backspace(size_t index);
     bool charDelete(size_t index);
+    bool addTabs(const std::vector<size_t>& indices);
+    bool removeTabs(const std::vector<size_t>& indices);
     void deleteText(size_t start, size_t end, bool undoRedo = false);
 
     void undo();

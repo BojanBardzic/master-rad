@@ -71,6 +71,17 @@ void Selection::selectAll(TextCoordinates& newCoords) {
     m_end = newCoords;
 }
 
+void Selection::moveEndRight() {
+    auto line = m_lineBuffer->lineAt(m_end.m_row-1);
+
+    if (!line.empty())
+        m_end.m_col = std::min(m_end.m_col+1, line.size()+1);
+}
+
+void Selection::moveEndLeft() {
+    m_end.m_col = std::max(m_end.m_col-1, (size_t) 1);
+}
+
 std::string Selection::getSelectionText() {
     std::string result;
     TextCoordinates it = m_start;

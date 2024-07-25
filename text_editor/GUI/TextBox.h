@@ -23,8 +23,8 @@
 
 class TextBox {
 public:
-    TextBox(float width = 200.0f, float height = 400.0f,
-            std::string fontName = "Consolas", std::string theme = "Light");
+    TextBox(float width, float height,
+            const std::string& fontName, const std::string& theme);
     ~TextBox();
 
     void draw();
@@ -32,7 +32,9 @@ public:
     void enterChar(char c);
     void enterText(std::string str);
     void backspace();
+    void tab(bool shift);
     void deleteChar();
+    void deleteLine();
     void selectAll();
     void cut();
     void copy();
@@ -82,9 +84,14 @@ public:
     void setHeight(float height);
     void setTheme(Theme* theme);
 private:
+    bool insertCharToPieceTable(char c);
     bool deleteSelection();
     void copySelectionToClipboard();
     TextCoordinates mousePositionToTextCoordinates(const ImVec2& mousePosition);
+
+    bool addTabToSelectedRows();
+    bool deleteTabFromSelectedRows();
+    bool reverseTab();
 
     void drawRectangle(ImVec2 currentPosition, float& lineHeight);
     void drawCursor();
@@ -102,11 +109,13 @@ private:
 
     std::string getStatusBarText();
 
-    bool readFromFile(std::string& buffer, const std::string& filePath);
+    static bool readFromFile(std::string& buffer, const std::string& filePath);
     bool saveToFile();
 
     void updateUndoRedo();
     void updateTextBoxSize();
+    void updateStateForTextChange();
+    void updateStateForCursorMovement();
 private:
     PieceTableInstance* m_pieceTableInstance;
     LineBuffer* m_lineBuffer;

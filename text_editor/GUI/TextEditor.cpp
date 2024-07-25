@@ -8,7 +8,7 @@ TextEditor::TextEditor() : m_clickedOnMenu(false) {
     FontManager::init();
     m_menuFont = new Font(m_menuFontName, m_menuFontSize);
 
-    m_textBox = new TextBox();
+    m_textBox = new TextBox(m_defaultWidth, m_defaultHeight, m_textFontName, m_defaultThemeName);
     m_textBox->setWidth(500.0f);
 }
 
@@ -127,9 +127,11 @@ void TextEditor::handleKeyboardInput() {
         } else if (isKeyPressed(ImGuiKey_Enter)) {
             m_textBox->enterChar('\n');
         } else if (isKeyPressed(ImGuiKey_Tab)) {
-            m_textBox->enterChar('\t');
+            m_textBox->tab(shift);
         } else if (isKeyPressed(ImGuiKey_Backspace)) {
             m_textBox->backspace();
+        } else if (shift && isKeyPressed(ImGuiKey_Delete)) {
+            m_textBox->deleteLine();
         } else if (isKeyPressed(ImGuiKey_Delete)) {
             m_textBox->deleteChar();
         } else if (ctrl && isKeyPressed(ImGuiKey_KeypadAdd)) {
@@ -237,7 +239,7 @@ void TextEditor::open() {
 
     auto path = openFileDialog();
 
-    if (path != "")
+    if (!path.empty())
         m_textBox->open(path);
 }
 
@@ -251,7 +253,7 @@ void TextEditor::save() {
 void TextEditor::saveAs() {
     auto path = saveFileDialog();
 
-    if (path != "") {
+    if (!path.empty()) {
         if (path.find_last_of('.') == std::string::npos)
             path += ".txt";
         m_textBox->saveAs(path);
@@ -259,7 +261,7 @@ void TextEditor::saveAs() {
 }
 
 std::string TextEditor::openFileDialog() {
-    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED |
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED |
                                       COINIT_DISABLE_OLE1DDE);
 
     PWSTR pszFilePath;
@@ -269,13 +271,13 @@ std::string TextEditor::openFileDialog() {
         IFileOpenDialog *pFileOpen;
 
         // Create the FileOpenDialog object.
-        hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+        hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_ALL,
                               IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
 
         if (SUCCEEDED(hr))
         {
             // Show the Open dialog box.
-            hr = pFileOpen->Show(NULL);
+            hr = pFileOpen->Show(nullptr);
 
             // Get the file name from the dialog box.
             if (SUCCEEDED(hr))
@@ -308,7 +310,7 @@ std::string TextEditor::openFileDialog() {
 }
 
 std::string TextEditor::saveFileDialog() {
-    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED |
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED |
                                       COINIT_DISABLE_OLE1DDE);
 
     PWSTR pszFilePath;
@@ -318,13 +320,13 @@ std::string TextEditor::saveFileDialog() {
         IFileSaveDialog *pFileSave;
 
         // Create the FileOpenDialog object.
-        hr = CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_ALL,
+        hr = CoCreateInstance(CLSID_FileSaveDialog, nullptr, CLSCTX_ALL,
                               IID_IFileSaveDialog, reinterpret_cast<void**>(&pFileSave));
 
         if (SUCCEEDED(hr))
         {
             // Show the Open dialog box.
-            hr = pFileSave->Show(NULL);
+            hr = pFileSave->Show(nullptr);
 
             // Get the file name from the dialog box.
             if (SUCCEEDED(hr))
@@ -364,7 +366,7 @@ int TextEditor::fileNotSavedWarningMessageBox() {
 
 
     auto msgboxID = MessageBox(
-            NULL,
+            nullptr,
             stream.str().c_str(),
             reinterpret_cast<LPCSTR>(L"Text editor"),
             MB_YESNOCANCEL

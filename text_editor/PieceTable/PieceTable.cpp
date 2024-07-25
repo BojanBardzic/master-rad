@@ -273,6 +273,22 @@ bool PieceTable::charDelete(size_t index) {
     return result;
 }
 
+bool PieceTable::addTabs(const std::vector<size_t> &indices) {
+    for (const size_t index : indices) {
+        insert("\t", index);
+    }
+
+    return !indices.empty();
+}
+
+bool PieceTable::removeTabs(const std::vector<size_t> &indices) {
+    for (const size_t index : indices) {
+        deleteText(index, index+1);
+    }
+
+    return !indices.empty();
+}
+
 
 // Deletes text from range [start, end)
 void PieceTable::deleteText(size_t start, size_t end, bool undoRedo) {
@@ -540,6 +556,7 @@ void PieceTable::clearRedoStack() {
         m_redoStack.pop();
     }
 }
+
 
 
 

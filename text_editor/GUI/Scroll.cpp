@@ -6,7 +6,7 @@
 
 Scroll::Scroll(LineBuffer *lineBuffer, Cursor *cursor, Font *font)
     : m_lineBuffer(lineBuffer), m_cursor(cursor), m_font(font), m_xScroll(0.0f), m_yScroll(0.0f),
-      m_maxXScroll(0.0f), m_maxYScroll(0.0f) {}
+      m_maxXScroll(0.0f), m_maxYScroll(0.0f), m_init(false) {}
 
 Scroll::~Scroll() {}
 

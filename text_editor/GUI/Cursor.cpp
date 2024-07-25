@@ -44,7 +44,7 @@ void Cursor::moveLeft() {
 }
 
 void Cursor::moveUp() {
-    if (!m_lineBuffer->isEmpty() && m_coord.m_row != 1) {
+    if (m_coord.m_row != 1) {
         resetTimer();
         m_coord.m_row -= 1;
         correctColumn();
@@ -52,7 +52,7 @@ void Cursor::moveUp() {
 }
 
 void Cursor::moveDown() {
-    if (!m_lineBuffer->isEmpty() && m_coord.m_row != m_lineBuffer->getLinesSize()) {
+    if (!m_lineBuffer->isEmpty() && m_coord.m_row < m_lineBuffer->getLinesSize()) {
         resetTimer();
         m_coord.m_row += 1;
         correctColumn();
