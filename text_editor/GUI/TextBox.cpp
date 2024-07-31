@@ -68,35 +68,27 @@ void TextBox::draw() {
 
         auto xScroll = m_scroll->getXScroll();
         auto yScroll = m_scroll->getYScroll();
+
         auto textPosition = ImVec2(currentPosition.x - xScroll, currentPosition.y - yScroll);
 
+        // Draw the selection rectangle if it's active
         if (m_selection->getActive() && overlap != std::pair{0, 0}) {
             auto leftOverlap = overlap.first;
             auto rightOverlap = overlap.second;
 
             auto leftString = line.substr(0, leftOverlap);
             auto middleString = line.substr(leftOverlap, rightOverlap-leftOverlap);
-            auto rightString = line.substr(rightOverlap);
 
-            if (!leftString.empty()) {
-                ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getTextColor(), leftString.c_str());
-                textPosition.x += m_cursor->getXAdvance(leftString);
-            }
+            auto leftStringAdvance = m_cursor->getXAdvance(leftString);
+            auto middleStringAdvance = m_cursor->getXAdvance(middleString);
 
-            auto secondStringAdvance = m_cursor->getXAdvance(middleString);
-            ImGui::GetWindowDrawList()->AddRectFilled(textPosition, ImVec2(textPosition.x + secondStringAdvance, textPosition.y + lineHeight), m_theme->getSelectColor());
-            ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getSelectTextColor(), middleString.c_str());
-            textPosition.x += secondStringAdvance;
-
-
-            if (!rightString.empty()) {
-                ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getTextColor(), rightString.c_str());
-            }
-
-        } else {
-            // Draw the line text
-            ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getTextColor(), line.c_str());
+            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(textPosition.x + leftStringAdvance, textPosition.y),
+                                                      ImVec2(textPosition.x + leftStringAdvance + middleStringAdvance, textPosition.y + lineHeight),
+                                                      m_theme->getColor(ThemeColor::SelectColor));
         }
+
+        drawText(textPosition, line, i);
+        //ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getColor(ThemeColor::TextColor), line.c_str());
 
         // Deactivate clip rectangle
         ImGui::GetWindowDrawList()->PopClipRect();
@@ -107,8 +99,9 @@ void TextBox::draw() {
 
     auto yOffset = currentPosition.y - cursorScreenPosition.y;
 
+    // If we haven't filled the entire text box we draw the rest of the background
     if (yOffset < m_height) {
-      ImGui::GetWindowDrawList()->AddRectFilled(currentPosition, getBottomRight(), m_theme->getBackGroundColor());
+      ImGui::GetWindowDrawList()->AddRectFilled(currentPosition, getBottomRight(), m_theme->getColor(ThemeColor::BackgroundColor));
     }
 
     if (m_cursor->getShouldRender())
@@ -116,7 +109,6 @@ void TextBox::draw() {
     m_cursor->updateShouldRender();
 
     drawScrollBars();
-
     drawStatusBar();
 
     ImGui::PopFont();
@@ -192,7 +184,8 @@ void TextBox::backspace() {
 void TextBox::tab(bool shift) {
     updateUndoRedo();
     bool changed = false;
-    bool cursorMoved = false;
+    bool cursorMovedLeft = false;
+    bool cursorMovedRight = false;
 
     m_pieceTableInstance->getInstance().flushInsertBuffer();
     m_pieceTableInstance->getInstance().flushDeleteBuffer();
@@ -202,15 +195,13 @@ void TextBox::tab(bool shift) {
         if (shift) {
             changed = deleteTabFromSelectedRows();
             if (changed) {
-                m_cursor->moveLeft();
+                cursorMovedLeft = true;
                 m_selection->moveEndLeft();
-                cursorMoved = true;
             }
         } else {
             changed = addTabToSelectedRows();
-            m_cursor->moveRight();
+            cursorMovedRight = true;
             m_selection->moveEndRight();
-            cursorMoved = true;
         }
     } else {
 
@@ -218,23 +209,25 @@ void TextBox::tab(bool shift) {
             changed = reverseTab();
             if (changed) {
                 m_cursor->recordCursorPosition();
-                m_cursor->moveLeft();
-                cursorMoved = true;
+                cursorMovedLeft = true;
             }
         } else {
             deleteSelection();
             insertCharToPieceTable('\t');
 
             m_cursor->recordCursorPosition();
-            m_cursor->moveRight();
-            cursorMoved = true;
+            cursorMovedRight = true;
             changed = true;
         }
     }
 
     if (changed)
         updateStateForTextChange();
-    if (cursorMoved)
+    if (cursorMovedLeft)
+        m_cursor->moveLeft();
+    if (cursorMovedRight)
+        m_cursor->moveRight();
+    if (cursorMovedLeft || cursorMovedRight)
         updateStateForCursorMovement();
 }
 
@@ -348,6 +341,7 @@ bool TextBox::open(std::string& filePath) {
 
     // If the read was successful update the filePath and pass the buffer contents to the piece table
     m_file = new File(filePath);
+    m_lineBuffer->setLanguageMode(File::getModeForExtension(m_file->getExtension()));
     m_pieceTableInstance->open(buffer);
 
     // Update the state of the text box
@@ -372,6 +366,7 @@ bool TextBox::save() {
 bool TextBox::saveAs(std::string &filePath) {
     auto oldFile = m_file;
     m_file = new File(filePath);
+    m_lineBuffer->setLanguageMode(File::getModeForExtension(m_file->getExtension()));
     delete oldFile;
 
     return save();
@@ -481,9 +476,12 @@ void TextBox::moveCursorToMousePosition(ImVec2& mousePosition) {
 }
 
 void TextBox::setMouseSelection(ImVec2& endPosition, ImVec2& delta) {
-    const ImVec2 startPosition = {endPosition.x - delta.x, endPosition.y - delta.y};
-    auto startPositionCoords = mousePositionToTextCoordinates(startPosition);
-    auto endPositionCoords = mousePositionToTextCoordinates(endPosition);
+    const ImVec2 endPositionCorrected = {endPosition.x + m_scroll->getXScroll(), endPosition.y + m_scroll->getYScroll() };
+    const ImVec2 startPositionCorrected = {endPositionCorrected.x - delta.x, endPositionCorrected.y - delta.y};
+
+
+    auto startPositionCoords = mousePositionToTextCoordinates(startPositionCorrected);
+    auto endPositionCoords = mousePositionToTextCoordinates(endPositionCorrected);
 
     if (startPositionCoords > endPositionCoords) {
         auto tmp = startPositionCoords;
@@ -762,9 +760,35 @@ inline void TextBox::drawRectangle(ImVec2 currentPosition, float& lineHeight) {
     // Add a clip rectangle
     ImGui::GetWindowDrawList()->PushClipRect(screenPosition, ImVec2(screenPosition.x + m_width, screenPosition.y + m_height));
     // Draw the background rectangle
-    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getBackGroundColor());
+    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getColor(ThemeColor::BackgroundColor));
     // Deactivate clip rectangle
     ImGui::GetWindowDrawList()->PopClipRect();
+}
+
+void TextBox::drawText(ImVec2 textPosition, const std::string &line, size_t index) {
+    std::cerr << "Entered draw text" << std::endl;
+    if (m_lineBuffer->getLanguageMode() == LanguageMode::PlainText) {
+        ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getColor(ThemeColor::TextColor), line.c_str());
+        return;
+    }
+
+    auto colorMap = m_lineBuffer->getColorMap(index);
+
+    size_t start = 0;
+    while (start < line.size()) {
+        size_t length = 0;
+        ThemeColor color = colorMap[start];
+
+        while (start + length < line.size() && colorMap[start + length] == color) {
+            ++length;
+        }
+
+        auto text = line.substr(start, length);
+        ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getColor(color), text.c_str());
+        textPosition.x += m_cursor->getXAdvance(text);
+        start += length;
+    }
+    std::cerr << "Exited draw text" << std::endl;
 }
 
 void TextBox::drawCursor() {
@@ -776,7 +800,7 @@ void TextBox::drawCursor() {
 
     auto bottomRight = ImVec2(topLeft.x + m_cursor->getWidth(), topLeft.y + ImGui::GetFontSize());
 
-    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getCursorColor());
+    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getColor(ThemeColor::CursorColor));
 }
 
 
@@ -787,7 +811,7 @@ void TextBox::drawScrollBars() {
     auto screenPosition = getTopLeft();
     auto topLeft = ImVec2(screenPosition.x + m_width, screenPosition.y + m_height);
     auto bottomRight = ImVec2(topLeft.x + m_scrollbarSize, topLeft.y + m_scrollbarSize);
-    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getScrollbarPrimaryColor());
+    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getColor(ThemeColor::ScrollbarPrimaryColor));
 }
 
 // Draws the entire horizontal scrollbar
@@ -799,7 +823,7 @@ void TextBox::drawHorizontalScrollbar() {
 
     if (maxXScroll != 0.0f) {
         updateHScrollSelectRect();
-        drawRect(m_scroll->getHScrollSelectRect(), m_theme->getScrollbarPrimaryColor());
+        drawRect(m_scroll->getHScrollSelectRect(), m_theme->getColor(ThemeColor::ScrollbarPrimaryColor));
     }
 }
 
@@ -812,7 +836,7 @@ void TextBox::drawVerticalScrollbar() {
 
     if (maxYScroll != 0.0f) {
         updateVScrollSelectRect();
-        drawRect(m_scroll->getVScrollSelectRect(), m_theme->getScrollbarPrimaryColor());
+        drawRect(m_scroll->getVScrollSelectRect(), m_theme->getColor(ThemeColor::ScrollbarPrimaryColor));
     }
 }
 
@@ -822,8 +846,8 @@ void TextBox::drawHScrollbarRect() {
     auto topLeft = rect.getTopLeft();
     auto bottomRight = rect.getBottomRight();
 
-    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x - m_scrollbarSize, topLeft.y), ImVec2(bottomRight.x + m_scrollbarSize, bottomRight.y), m_theme->getScrollbarPrimaryColor());
-    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y), ImVec2(bottomRight.x , bottomRight.y), m_theme->getScrollbarSecondaryColor());
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x - m_scrollbarSize, topLeft.y), ImVec2(bottomRight.x + m_scrollbarSize, bottomRight.y), m_theme->getColor(ThemeColor::ScrollbarPrimaryColor));
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y), ImVec2(bottomRight.x , bottomRight.y), m_theme->getColor(ThemeColor::ScrollbarSecondaryColor));
 }
 
 // Draw the vertical scrollbar rectangle
@@ -832,8 +856,8 @@ void TextBox::drawVScrollbarRect() {
     auto topLeft = rect.getTopLeft();
     auto bottomRight = rect.getBottomRight();
 
-    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y - m_scrollbarSize), ImVec2(bottomRight.x, bottomRight.y + m_scrollbarSize), m_theme->getScrollbarPrimaryColor());
-    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getScrollbarSecondaryColor());
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y - m_scrollbarSize), ImVec2(bottomRight.x, bottomRight.y + m_scrollbarSize), m_theme->getColor(ThemeColor::ScrollbarPrimaryColor));
+    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getColor(ThemeColor::ScrollbarSecondaryColor));
 }
 
 void TextBox::drawRect(const MyRectangle &rect, const ImColor& color) {
@@ -997,6 +1021,8 @@ void TextBox::updateStateForTextChange() {
 void TextBox::updateStateForCursorMovement() {
     m_scroll->updateScroll(m_width, m_height);
 }
+
+
 
 
 

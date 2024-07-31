@@ -4,24 +4,25 @@
 
 #include "Theme.h"
 
-Theme::Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImColor cursorColor, ImColor selectColor,
-             ImColor selectTextColor, ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor)
-             : m_name(name), m_backgroundColor(backgroundColor), m_textColor(textColor), m_cursorColor(cursorColor),
-               m_selectColor(selectColor), m_selectTextColor(selectTextColor),
-               m_scrollbarPrimaryColor(scrollbarPrimaryColor), m_scrollbarSecondaryColor(scrollbarSecondaryColor) {}
+Theme::Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImColor stringColor, ImColor numberColor,
+             ImColor keywordColor, ImColor cursorColor, ImColor selectColor,
+             ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor) : m_name(name) {
+
+    m_colors.insert({ThemeColor::BackgroundColor, backgroundColor});
+    m_colors.insert({ThemeColor::TextColor, textColor});
+    m_colors.insert({ThemeColor::StringColor, stringColor});
+    m_colors.insert({ThemeColor::NumberColor, numberColor});
+    m_colors.insert({ThemeColor::KeywordColor, keywordColor});
+    m_colors.insert({ThemeColor::CursorColor, cursorColor});
+    m_colors.insert({ThemeColor::SelectColor, selectColor});
+    m_colors.insert({ThemeColor::ScrollbarPrimaryColor, scrollbarPrimaryColor});
+    m_colors.insert({ThemeColor::ScrollbarSecondaryColor, scrollbarSecondaryColor});
+}
 
 Theme::~Theme() {}
 
-const ImColor &Theme::getBackGroundColor() const { return m_backgroundColor; }
+const std::string &Theme::getName() const { return m_name; }
 
-const ImColor &Theme::getTextColor() const { return m_textColor; }
+const ImColor &Theme::getColor(const ThemeColor &color) { return m_colors[color]; }
 
-const ImColor &Theme::getCursorColor() const { return m_cursorColor; }
 
-const ImColor &Theme::getSelectColor() const { return m_selectColor; }
-
-const ImColor &Theme::getSelectTextColor() const { return m_selectTextColor; }
-
-const ImColor &Theme::getScrollbarPrimaryColor() const { return m_scrollbarPrimaryColor; }
-
-const ImColor &Theme::getScrollbarSecondaryColor() const { return m_scrollbarSecondaryColor; }

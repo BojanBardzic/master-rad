@@ -9,6 +9,7 @@
 #include <sstream>
 #include "../PieceTable/PieceTableInstance.h"
 #include "TextCoordinates.h"
+#include "TextHighlighter.h"
 
 class LineBuffer {
 public:
@@ -20,18 +21,26 @@ public:
     TextCoordinates bufferIndexToTextCoordinates(const size_t& index);
 
     std::string& lineAt(size_t index) const;
+    std::vector<ThemeColor>& getColorMap(size_t index) const;
     bool lineStarsWithTab(const size_t lineIndex) const;
     const size_t getLinesSize() const;
     const size_t getCharSize() const;
+    const LanguageMode getLanguageMode() const;
     bool isEmpty() const;
 
+
+    void setLanguageMode(const LanguageMode mode);
 private:
     void updateCharSize();
+    void updateColorMap();
 
     static std::string m_emptyLine;
+    static std::vector<ThemeColor> m_emptyMap;
     size_t m_charSize;
     std::vector<std::string>* m_lines;
+    std::vector<std::vector<ThemeColor>>* m_colorMap;
     PieceTableInstance* m_pieceTableInstance;
+    LanguageMode m_mode;
 };
 
 

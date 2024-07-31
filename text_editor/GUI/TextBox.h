@@ -15,6 +15,7 @@
 #include "../PieceTable/PieceTableInstance.h"
 #include "Selection.h"
 #include "Scroll.h"
+#include "TextHighlighter.h"
 #include "Theme.h"
 
 #include <string>
@@ -94,6 +95,7 @@ private:
     bool reverseTab();
 
     void drawRectangle(ImVec2 currentPosition, float& lineHeight);
+    void drawText(ImVec2 textPosition, const std::string& line, size_t index);
     void drawCursor();
     void drawScrollBars();
     void drawHorizontalScrollbar();

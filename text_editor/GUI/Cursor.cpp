@@ -13,8 +13,8 @@ Cursor::Cursor(LineBuffer* lineBuffer, size_t row, size_t col)
 Cursor::~Cursor() {}
 
 void Cursor::moveRight() {
-    if (m_lineBuffer->isEmpty() || (m_coord.m_col > m_lineBuffer->lineAt(m_coord.m_row-1).size() && m_coord.m_row ==
-                                                                                                            m_lineBuffer->getLinesSize())) {
+    if (m_lineBuffer->isEmpty() || (m_coord.m_col > m_lineBuffer->lineAt(m_coord.m_row-1).size()
+        && m_coord.m_row == m_lineBuffer->getLinesSize())) {
         return;
     }
 

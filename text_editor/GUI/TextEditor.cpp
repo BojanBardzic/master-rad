@@ -368,7 +368,7 @@ int TextEditor::fileNotSavedWarningMessageBox() {
     auto msgboxID = MessageBox(
             nullptr,
             stream.str().c_str(),
-            reinterpret_cast<LPCSTR>(L"Text editor"),
+            reinterpret_cast<LPCSTR>(L"TextColor editor"),
             MB_YESNOCANCEL
     );
 

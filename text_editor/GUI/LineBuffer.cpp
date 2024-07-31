@@ -5,9 +5,11 @@
 #include "LineBuffer.h"
 
 std::string LineBuffer::m_emptyLine;
+std::vector<ThemeColor> LineBuffer::m_emptyMap;
 
-LineBuffer::LineBuffer(PieceTableInstance *pieceTableInstance) : m_pieceTableInstance(pieceTableInstance) {
+LineBuffer::LineBuffer(PieceTableInstance *pieceTableInstance) : m_pieceTableInstance(pieceTableInstance), m_mode(LanguageMode::PlainText) {
     m_lines = new std::vector<std::string>();
+    m_colorMap = new std::vector<std::vector<ThemeColor>>();
 }
 
 LineBuffer::~LineBuffer() {
@@ -45,6 +47,8 @@ void LineBuffer::getLines() {
         it = std::next(newLine);
     }
 
+    if (m_mode != LanguageMode::PlainText)
+        updateColorMap();
     updateCharSize();
 }
 
@@ -85,6 +89,13 @@ std::string& LineBuffer::lineAt(size_t index) const {
         return m_emptyLine;
 }
 
+std::vector<ThemeColor> &LineBuffer::getColorMap(size_t index) const {
+    if (index < m_colorMap->size())
+        return m_colorMap->at(index);
+    else
+        return m_emptyMap;
+}
+
 bool LineBuffer::lineStarsWithTab(const size_t lineIndex) const {
     if (isEmpty() || lineIndex >= getLinesSize() || m_lines->at(lineIndex).empty())
         return false;
@@ -96,12 +107,26 @@ const size_t LineBuffer::getLinesSize() const { return m_lines->size(); }
 
 const size_t LineBuffer::getCharSize() const { return m_charSize; }
 
+const LanguageMode LineBuffer::getLanguageMode() const { return m_mode; }
+
 bool LineBuffer::isEmpty() const { return m_lines->empty(); }
+
+void LineBuffer::setLanguageMode(const LanguageMode mode) { m_mode = mode; }
 
 void LineBuffer::updateCharSize() {
     m_charSize = std::accumulate(m_lines->begin(), m_lines->end(), (size_t) 0, [](size_t acc, std::string& line) { return  acc + line.size() + 1; });
     if (m_charSize != 0)
         m_charSize -= 1;
 }
+
+void LineBuffer::updateColorMap() {
+    m_colorMap->clear();
+
+    for (std::string& line : *m_lines) {
+        m_colorMap->push_back(TextHighlighter::getColorMap(line, m_mode));
+    }
+}
+
+
 
 

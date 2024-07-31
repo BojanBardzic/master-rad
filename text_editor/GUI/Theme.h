@@ -6,31 +6,35 @@
 #define TEXT_EDITOR_THEME_H
 
 #include "imgui.h"
+#include "TextHighlighter.h"
 #include <string>
+#include <unordered_map>
+
+enum ThemeColor {
+    BackgroundColor,
+    TextColor,
+    StringColor,
+    NumberColor,
+    KeywordColor,
+    CursorColor,
+    SelectColor,
+    ScrollbarPrimaryColor,
+    ScrollbarSecondaryColor,
+};
 
 class Theme {
 public:
-    Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImColor cursorColor, ImColor selectColor,
-          ImColor selectTextColor, ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor);
+    Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImColor stringColor, ImColor numberColor,
+          ImColor keywordColor, ImColor cursorColor, ImColor selectColor,
+          ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor);
+
     ~Theme();
 
     const std::string& getName() const;
-    const ImColor& getBackGroundColor() const;
-    const ImColor& getTextColor() const;
-    const ImColor& getCursorColor() const;
-    const ImColor& getSelectColor() const;
-    const ImColor& getSelectTextColor() const;
-    const ImColor& getScrollbarPrimaryColor() const;
-    const ImColor& getScrollbarSecondaryColor() const;
+    const ImColor& getColor(const ThemeColor& color);
 private:
     std::string m_name;
-    ImColor m_backgroundColor;
-    ImColor m_textColor;
-    ImColor m_cursorColor;
-    ImColor m_selectColor;
-    ImColor m_selectTextColor;
-    ImColor m_scrollbarPrimaryColor;
-    ImColor m_scrollbarSecondaryColor;
+    std::unordered_map<ThemeColor, ImColor> m_colors;
 };
 
 
