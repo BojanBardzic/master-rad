@@ -16,6 +16,8 @@ enum ThemeColor {
     StringColor,
     NumberColor,
     KeywordColor,
+    PreprocessorColor,
+    CommentColor,
     CursorColor,
     SelectColor,
     ScrollbarPrimaryColor,
@@ -25,7 +27,7 @@ enum ThemeColor {
 class Theme {
 public:
     Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImColor stringColor, ImColor numberColor,
-          ImColor keywordColor, ImColor cursorColor, ImColor selectColor,
+          ImColor keywordColor, ImColor preprocessorColor, ImColor commentColor, ImColor cursorColor, ImColor selectColor,
           ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor);
 
     ~Theme();

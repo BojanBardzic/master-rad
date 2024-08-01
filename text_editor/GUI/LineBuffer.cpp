@@ -125,6 +125,41 @@ void LineBuffer::updateColorMap() {
     for (std::string& line : *m_lines) {
         m_colorMap->push_back(TextHighlighter::getColorMap(line, m_mode));
     }
+
+    markMultilineComments();
+}
+
+void LineBuffer::markMultilineComments() {
+    bool insideComment = false;
+    const std::string& multilineCommentStart = LanguageManager::getLanguage(m_mode)->getMultiLineCommentStart();
+    const std::string& multilineCommentEnd = LanguageManager::getLanguage(m_mode)->getMultiLineCommentEnd();
+
+    for (size_t i=0; i<m_lines->size(); ++i) {
+        std::string& line = m_lines->at(i);
+        std::vector<ThemeColor>& colorMap = m_colorMap->at(i);
+
+        if (insideComment) {
+            auto start = line.find(multilineCommentEnd);
+
+            if (start != std::string::npos) {
+                std::fill(colorMap.begin(), colorMap.begin() + start + multilineCommentEnd.size(), ThemeColor::CommentColor);
+                insideComment = false;
+            } else {
+                std::fill(colorMap.begin(), colorMap.end(), ThemeColor::CommentColor);
+            }
+        } else {
+            auto start = line.find(multilineCommentStart);
+            auto end = line.find(multilineCommentEnd);
+
+            if (start != std::string::npos && colorMap[start] != ThemeColor::StringColor && colorMap[start] != ThemeColor::CommentColor) {
+                if (end != std::string::npos)
+                    std::fill(colorMap.begin() + start, colorMap.begin() + end + multilineCommentEnd.size(), ThemeColor::CommentColor);
+                else
+                    std::fill(colorMap.begin() + start, colorMap.end(), ThemeColor::CommentColor);
+                insideComment = true;
+            }
+        }
+    }
 }
 
 

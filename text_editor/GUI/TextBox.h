@@ -17,6 +17,7 @@
 #include "Scroll.h"
 #include "TextHighlighter.h"
 #include "Theme.h"
+#include "ThemeManager.h"
 
 #include <string>
 #include <iostream>
@@ -25,7 +26,7 @@
 class TextBox {
 public:
     TextBox(float width, float height,
-            const std::string& fontName, const std::string& theme);
+            const std::string& fontName, const ThemeName theme);
     ~TextBox();
 
     void draw();

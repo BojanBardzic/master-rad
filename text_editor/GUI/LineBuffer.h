@@ -34,6 +34,8 @@ private:
     void updateCharSize();
     void updateColorMap();
 
+    void markMultilineComments();
+
     static std::string m_emptyLine;
     static std::vector<ThemeColor> m_emptyMap;
     size_t m_charSize;

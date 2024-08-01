@@ -9,11 +9,16 @@
 #include <string>
 #include "Theme.h"
 
+enum ThemeName {
+    Light,
+    Dark
+};
+
 class ThemeManager {
 public:
-    static Theme* getTheme(std::string name);
+    static Theme* getTheme(const ThemeName theme);
 private:
-    static std::unordered_map<std::string, Theme*> m_themes;
+    static std::unordered_map<ThemeName, Theme*> m_themes;
 };
 
 

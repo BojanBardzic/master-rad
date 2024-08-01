@@ -8,7 +8,7 @@ TextEditor::TextEditor() : m_clickedOnMenu(false) {
     FontManager::init();
     m_menuFont = new Font(m_menuFontName, m_menuFontSize);
 
-    m_textBox = new TextBox(m_defaultWidth, m_defaultHeight, m_textFontName, m_defaultThemeName);
+    m_textBox = new TextBox(m_defaultWidth, m_defaultHeight, m_textFontName, m_defaultTheme);
     m_textBox->setWidth(500.0f);
 }
 
@@ -86,11 +86,11 @@ void TextEditor::drawMenu() {
         if (ImGui::BeginMenu("Theme")) {
             m_clickedOnMenu = true;
 
-            if (ImGui::MenuItem("Light", "", false, m_textBox->getTheme() != ThemeManager::getTheme("Light"))) {
-                m_textBox->setTheme(ThemeManager::getTheme("Light"));
+            if (ImGui::MenuItem("Light", "", false, m_textBox->getTheme() != ThemeManager::getTheme(ThemeName::Light))) {
+                m_textBox->setTheme(ThemeManager::getTheme(ThemeName::Light));
             }
-            if (ImGui::MenuItem("Dark", "", false, m_textBox->getTheme() != ThemeManager::getTheme("Dark"))) {
-                m_textBox->setTheme(ThemeManager::getTheme("Dark"));
+            if (ImGui::MenuItem("Dark", "", false, m_textBox->getTheme() != ThemeManager::getTheme(ThemeName::Dark))) {
+                m_textBox->setTheme(ThemeManager::getTheme(ThemeName::Dark));
             }
 
             ImGui::EndMenu();

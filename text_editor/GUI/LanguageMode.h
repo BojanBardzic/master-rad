@@ -7,7 +7,8 @@
 
 enum LanguageMode {
     PlainText,
-    Cpp
+    Cpp,
+    Java
 };
 
 #endif //TEXT_EDITOR_LANGUAGEMODE_H

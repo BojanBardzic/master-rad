@@ -46,7 +46,7 @@ private:
     bool m_clickedOnMenu;
     const std::string m_textFontName = "Consolas";
     const std::string m_menuFontName = "Segoe UI";
-    const std::string m_defaultThemeName = "Light";
+    const ThemeName m_defaultTheme = ThemeName::Light;
     const float m_defaultWidth = 200.0f;
     const float m_defaultHeight = 400.0f;
     const float m_menuFontSize = 19.0f;

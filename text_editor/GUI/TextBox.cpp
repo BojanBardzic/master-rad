@@ -3,10 +3,9 @@
 //
 
 #include "TextBox.h"
-#include "ThemeManager.h"
 #include <utility>
 
-TextBox::TextBox(float width, float height, const std::string& fontName, const std::string& theme) : m_dirty(false), m_file(nullptr) {
+TextBox::TextBox(float width, float height, const std::string& fontName, const ThemeName theme) : m_dirty(false), m_file(nullptr) {
 
     m_pieceTableInstance = new PieceTableInstance();
     m_lineBuffer = new LineBuffer(m_pieceTableInstance);
@@ -88,7 +87,6 @@ void TextBox::draw() {
         }
 
         drawText(textPosition, line, i);
-        //ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getColor(ThemeColor::TextColor), line.c_str());
 
         // Deactivate clip rectangle
         ImGui::GetWindowDrawList()->PopClipRect();
@@ -766,7 +764,6 @@ inline void TextBox::drawRectangle(ImVec2 currentPosition, float& lineHeight) {
 }
 
 void TextBox::drawText(ImVec2 textPosition, const std::string &line, size_t index) {
-    std::cerr << "Entered draw text" << std::endl;
     if (m_lineBuffer->getLanguageMode() == LanguageMode::PlainText) {
         ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getColor(ThemeColor::TextColor), line.c_str());
         return;
@@ -788,7 +785,6 @@ void TextBox::drawText(ImVec2 textPosition, const std::string &line, size_t inde
         textPosition.x += m_cursor->getXAdvance(text);
         start += length;
     }
-    std::cerr << "Exited draw text" << std::endl;
 }
 
 void TextBox::drawCursor() {

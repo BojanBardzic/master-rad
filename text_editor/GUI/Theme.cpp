@@ -5,7 +5,7 @@
 #include "Theme.h"
 
 Theme::Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImColor stringColor, ImColor numberColor,
-             ImColor keywordColor, ImColor cursorColor, ImColor selectColor,
+             ImColor keywordColor, ImColor preprocessorColor, ImColor commentColor, ImColor cursorColor, ImColor selectColor,
              ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor) : m_name(name) {
 
     m_colors.insert({ThemeColor::BackgroundColor, backgroundColor});
@@ -13,6 +13,8 @@ Theme::Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImCol
     m_colors.insert({ThemeColor::StringColor, stringColor});
     m_colors.insert({ThemeColor::NumberColor, numberColor});
     m_colors.insert({ThemeColor::KeywordColor, keywordColor});
+    m_colors.insert({ThemeColor::PreprocessorColor, preprocessorColor});
+    m_colors.insert({ThemeColor::CommentColor, commentColor});
     m_colors.insert({ThemeColor::CursorColor, cursorColor});
     m_colors.insert({ThemeColor::SelectColor, selectColor});
     m_colors.insert({ThemeColor::ScrollbarPrimaryColor, scrollbarPrimaryColor});
