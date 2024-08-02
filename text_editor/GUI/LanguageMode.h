@@ -8,6 +8,8 @@
 enum LanguageMode {
     PlainText,
     Cpp,
+    C,
+    CSharp,
     Java
 };
 

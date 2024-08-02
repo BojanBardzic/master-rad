@@ -926,6 +926,7 @@ void TextBox::drawStatusBar() {
 std::string TextBox::getStatusBarText() {
     std::stringstream stream;
     stream << (m_file == nullptr ? "Untitled" : m_file->getName()) << (m_dirty ? "*" : " ") << " |  ";
+    stream << (m_lineBuffer->getLanguageMode() == LanguageMode::PlainText ? "Plain text" : LanguageManager::getLanguage(m_lineBuffer->getLanguageMode())->getName()) << " |  ";
     stream << "Row: " << m_cursor->getRow() << " Column: " << m_cursor->getCol();
     return stream.str();
 }

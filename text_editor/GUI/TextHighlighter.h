@@ -21,7 +21,7 @@ public:
     static std::vector<ThemeColor> getColorMap(std::string& line, LanguageMode mode);
 private:
     static void searchRegex(std::string line, std::vector<ThemeColor>& colorMap, const std::regex& regex, ThemeColor color);
-    static void searchForKeywords(std::string line, std::vector<ThemeColor>& colorMap, LanguageMode mode);
+    static void searchForKeywordsAndNumbers(std::string line, std::vector<ThemeColor>& colorMap, LanguageMode mode);
     static void parseSegment(std::string& line, size_t start, size_t end, std::vector<ThemeColor>& colorMap, LanguageMode mode);
     static void searchForPreprocessorCommands(std::string& line, std::vector<ThemeColor>& colorMap);
     static void searchForSingleLineComment(std::string& line, std::vector<ThemeColor>& colorMap, LanguageMode mode);

@@ -35,5 +35,8 @@ const std::unordered_map<std::string, LanguageMode> File::m_extensions = {
         {"cp", LanguageMode::Cpp},
         {"java", LanguageMode::Java},
         {"jar", LanguageMode::Java},
-        {"jnl", LanguageMode::Java}
+        {"jnl", LanguageMode::Java},
+        {"c", LanguageMode::C},
+        {"h", LanguageMode::C},
+        {"cs", LanguageMode::CSharp},
 };

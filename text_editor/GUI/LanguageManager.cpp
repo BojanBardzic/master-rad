@@ -39,6 +39,49 @@ const std::unordered_map<LanguageMode, Language*> LanguageManager::m_languages =
                     true
             }
         },
+
+        {
+            LanguageMode::C,
+            new Language {
+                std::set<std::string> {
+                    "alignas", "alignof", "auto", "bool", "break", "case", "char", "const", "constexpr",
+                    "continue", "default", "do", "double", "else", "enum", "extern", "false", "float",
+                    "for", "goto", "if", "inline", "int", "long", "null", "nullptr", "register", "register",
+                    "restrict", "return", "short", "signed", "sizeof", "static", "static_assert", "struct",
+                    "switch", "thread_local", "true", "typedef", "typeof", "union", "unsigned", "void",
+                    "volatile", "while"
+                },
+                "//",
+                "/*",
+                "*/",
+                "C",
+                true
+            }
+        },
+
+        {
+            LanguageMode::CSharp,
+            new Language {
+                std::set<std::string> {
+                    "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char",
+                    "checked", "class", "const", "continue", "decimal", "default", "delegate",
+                    "do", "double", "dynamic", "else", "enum", "event", "explicit", "extern", "false", "finally",
+                    "fixed", "float", "for", "foreach", "from", "goto", "if", "implicit", "in", "int",
+                    "interface", "internal", "is", "lock", "long", "namespace", "new", "null",
+                    "object", "operator", "out", "override", "params", "private", "protected",
+                    "public", "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof",
+                    "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true",
+                    "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using",
+                    "virtual", "void", "volatile", "while"
+                },
+                "//",
+                "/*",
+                "*/",
+                "C#",
+                false
+            }
+        },
+
         {
             LanguageMode::Java,
             new Language {
@@ -49,7 +92,7 @@ const std::unordered_map<LanguageMode, Language*> LanguageManager::m_languages =
                     "enum", "exports", "extends", "false", "final", "finally", "float",
                     "for", "goto", "if", "implements", "import", "instanceof",
                     "int", "interface", "long", "module", "new", "null", "package", "permits",
-                    "private", "protected", "public", "requires", "return", "sealed"
+                    "private", "protected", "public", "requires", "return", "sealed",
                     "short", "static", "strictfp", "super", "switch", "synchronized",
                     "this", "throw", "transient", "true", "try", "var", "volatile", "while"
                 },

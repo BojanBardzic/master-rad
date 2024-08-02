@@ -11,13 +11,12 @@ lexertk::generator TextHighlighter::generator;
 std::vector<ThemeColor> TextHighlighter::getColorMap(std::string& line, LanguageMode mode) {
     std::vector<ThemeColor> colorMap(line.size(), ThemeColor::TextColor);
 
-    if (mode == LanguageMode::Cpp)
+    if (LanguageManager::getLanguage(mode)->isPreprocessor())
         searchForPreprocessorCommands(line, colorMap);
 
     searchForSingleLineComment(line, colorMap, mode);
     searchRegex(line, colorMap, m_stringRegex, ThemeColor::StringColor);
-    searchRegex(line, colorMap, m_numberRegex, ThemeColor::NumberColor);
-    searchForKeywords(line, colorMap, mode);
+    searchForKeywordsAndNumbers(line, colorMap, mode);
 
     return colorMap;
 }
@@ -39,7 +38,7 @@ void TextHighlighter::searchRegex(std::string line, std::vector<ThemeColor> &col
     }
 }
 
-void TextHighlighter::searchForKeywords(std::string line, std::vector<ThemeColor> &colorMap, LanguageMode mode) {
+void TextHighlighter::searchForKeywordsAndNumbers(std::string line, std::vector<ThemeColor> &colorMap, LanguageMode mode) {
     std::stringstream stream(line);
 
     size_t start = 0;
@@ -67,11 +66,13 @@ void TextHighlighter::parseSegment(std::string& line, size_t start, size_t end, 
     if (generator.process(segment)) {
         for (size_t i=0; i<generator.size(); ++i) {
             auto token = generator[i];
+            size_t position = token.position;
+            size_t length = token.value.size();
 
             if (token.type == lexertk::token::e_symbol && keywords.find(token.value) != keywords.end()) {
-                size_t position = token.position;
-                size_t length = token.value.size();
                 std::fill(colorMap.begin() + start + position, colorMap.begin() + start + position + length, ThemeColor::KeywordColor);
+            } else if (token.value != "." && token.type == lexertk::token::e_number) {
+                std::fill(colorMap.begin() + start + position, colorMap.begin() + start + position + length, ThemeColor::NumberColor);
             }
         }
     }
