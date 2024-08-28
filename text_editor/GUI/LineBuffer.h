@@ -9,7 +9,7 @@
 #include <sstream>
 #include "../PieceTable/PieceTableInstance.h"
 #include "TextCoordinates.h"
-#include "TextHighlighter.h"
+#include "../SyntaxHiglighting/TextHighlighter.h"
 
 class LineBuffer {
 public:

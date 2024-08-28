@@ -11,6 +11,7 @@ TextBox::TextBox(float width, float height, const std::string& fontName, const T
     m_lineBuffer = new LineBuffer(m_pieceTableInstance);
     m_cursor = new Cursor(m_lineBuffer);
     m_selection = new Selection(m_lineBuffer);
+    m_writeSelection = new Selection(m_lineBuffer);
     m_font = new Font(fontName);
     m_statusBarFont = new Font("Segoe UI", 19.0f);
     m_scroll = new Scroll(m_lineBuffer, m_cursor, m_font);
@@ -29,6 +30,7 @@ TextBox::~TextBox() {
     delete m_font;
     delete m_statusBarFont;
     delete m_selection;
+    delete m_writeSelection;
     delete m_cursor;
     delete m_lineBuffer;
     delete m_pieceTableInstance;
@@ -63,29 +65,16 @@ void TextBox::draw() {
         auto bottomRight = ImVec2(currentPosition.x + m_width, std::min(currentPosition.y + lineHeight + 2.0f, cursorScreenPosition.y + m_height));
         ImGui::GetWindowDrawList()->PushClipRect(cursorScreenPosition, bottomRight);
 
-        auto overlap = m_selection->getIntersectionWithLine(i);
-
         auto xScroll = m_scroll->getXScroll();
         auto yScroll = m_scroll->getYScroll();
 
         auto textPosition = ImVec2(currentPosition.x - xScroll, currentPosition.y - yScroll);
 
-        // Draw the selection rectangle if it's active
-        if (m_selection->getActive() && overlap != std::pair{0, 0}) {
-            auto leftOverlap = overlap.first;
-            auto rightOverlap = overlap.second;
+        // Draw the selection if it's active
+        drawSelection(m_writeSelection, textPosition, line, i, ThemeColor::WriteSelectColor);
+        drawSelection(m_selection, textPosition, line, i, ThemeColor::SelectColor);
 
-            auto leftString = line.substr(0, leftOverlap);
-            auto middleString = line.substr(leftOverlap, rightOverlap-leftOverlap);
-
-            auto leftStringAdvance = m_cursor->getXAdvance(leftString);
-            auto middleStringAdvance = m_cursor->getXAdvance(middleString);
-
-            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(textPosition.x + leftStringAdvance, textPosition.y),
-                                                      ImVec2(textPosition.x + leftStringAdvance + middleStringAdvance, textPosition.y + lineHeight),
-                                                      m_theme->getColor(ThemeColor::SelectColor));
-        }
-
+        // Draw the text
         drawText(textPosition, line, i);
 
         // Deactivate clip rectangle
@@ -102,10 +91,7 @@ void TextBox::draw() {
       ImGui::GetWindowDrawList()->AddRectFilled(currentPosition, getBottomRight(), m_theme->getColor(ThemeColor::BackgroundColor));
     }
 
-    if (m_cursor->getShouldRender())
-        drawCursor();
-    m_cursor->updateShouldRender();
-
+    drawCursor();
     drawScrollBars();
     drawStatusBar();
 
@@ -124,7 +110,7 @@ void TextBox::enterChar(char c) {
     if (initialized)
         m_cursor->recordCursorPosition();
 
-    updateStateForTextChange();
+    updateStateForTextChange(true, 1);
 
     m_cursor->moveRight();
     updateStateForCursorMovement();
@@ -144,7 +130,7 @@ void TextBox::enterText(std::string str) {
     size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
     m_pieceTableInstance->getInstance().insert(std::move(str), index);
 
-    updateStateForTextChange();
+    updateStateForTextChange(true, size);
 
     auto newCoords = m_lineBuffer->bufferIndexToTextCoordinates(index + size);
     m_cursor->setCoords(newCoords);
@@ -170,7 +156,7 @@ void TextBox::backspace() {
         if (initialized)
             m_cursor->recordCursorPosition();
 
-        updateStateForTextChange();
+        updateStateForTextChange(false, 1);
 
         m_cursor->moveLeft();
 
@@ -181,15 +167,18 @@ void TextBox::backspace() {
 // Handles all the cases for the tab and tab + shift commands
 void TextBox::tab(bool shift) {
     updateUndoRedo();
+
+    // Event flags
     bool changed = false;
     bool cursorMovedLeft = false;
     bool cursorMovedRight = false;
 
+    // Flush the buffers
     m_pieceTableInstance->getInstance().flushInsertBuffer();
     m_pieceTableInstance->getInstance().flushDeleteBuffer();
 
     // If there is an active selection and its multiline
-    if (m_selection->getActive() && m_selection->getStart().m_row < m_selection->getEnd().m_row) {
+    if (m_selection->isActive() && m_selection->getStart().m_row < m_selection->getEnd().m_row) {
         if (shift) {
             changed = deleteTabFromSelectedRows();
             if (changed) {
@@ -202,7 +191,6 @@ void TextBox::tab(bool shift) {
             m_selection->moveEndRight();
         }
     } else {
-
         if (shift) {
             changed = reverseTab();
             if (changed) {
@@ -220,7 +208,7 @@ void TextBox::tab(bool shift) {
     }
 
     if (changed)
-        updateStateForTextChange();
+        updateStateForTextChange(!cursorMovedLeft, 1);
     if (cursorMovedLeft)
         m_cursor->moveLeft();
     if (cursorMovedRight)
@@ -247,7 +235,7 @@ void TextBox::deleteChar() {
         if (initialized)
             m_cursor->recordCursorPosition();
 
-        updateStateForTextChange();
+        updateStateForTextChange(false, 1);
     }
 }
 
@@ -256,7 +244,7 @@ void TextBox::deleteLine() {
     m_pieceTableInstance->getInstance().flushInsertBuffer();
     m_pieceTableInstance->getInstance().flushDeleteBuffer();
 
-    if (m_selection->getActive()) {
+    if (m_selection->isActive()) {
         deleteSelection();
         return;
     }
@@ -271,7 +259,7 @@ void TextBox::deleteLine() {
 
     m_cursor->recordCursorPosition();
     m_pieceTableInstance->getInstance().deleteText(index, index+offset);
-    updateStateForTextChange();
+    updateStateForTextChange(false, line.size());
 
     m_cursor->setCoords({std::min(row, m_lineBuffer->getLinesSize()), 1});
     updateStateForCursorMovement();
@@ -281,17 +269,36 @@ void TextBox::selectAll() {
     m_cursor->moveToEndOfFile();
     auto newCoords = m_cursor->getCoords();
     m_selection->selectAll(newCoords);
+    updateStateForSelectionChange();
+}
+
+void TextBox::activateWriteSelection() {
+    if (!m_selection->isActive())
+        return;
+
+    m_writeSelection->setActive(true);
+    m_writeSelection->setStart(m_selection->getStart());
+    m_writeSelection->setEnd(m_selection->getEnd());
+
+    m_selection->setActive(false);
+}
+
+void TextBox::deactivateWriteSelection() {
+    if (m_writeSelection->isActive()) {
+        m_selection->setActive(false);
+        m_writeSelection->setActive(false);
+    }
 }
 
 void TextBox::cut() {
-    if (m_selection->getActive()) {
+    if (m_selection->isActive()) {
         copySelectionToClipboard();
         deleteSelection();
     }
 }
 
 void TextBox::copy() {
-    if (m_selection->getActive()) {
+    if (m_selection->isActive()) {
         copySelectionToClipboard();
     }
 }
@@ -303,21 +310,21 @@ void TextBox::paste() {
 }
 
 void TextBox::undo() {
+    m_writeSelection->setActive(false);
     m_pieceTableInstance->getInstance().flushInsertBuffer();
     m_pieceTableInstance->getInstance().flushDeleteBuffer();
     m_pieceTableInstance->getInstance().undo();
     m_cursor->cursorUndo();
-    m_lineBuffer->getLines();
-    m_scroll->updateScroll(m_width, m_height);
-    m_scroll->updateMaxScroll(m_width, m_height);
+    updateStateForTextChange(true, 0);
+    updateStateForCursorMovement();
 }
 
 void TextBox::redo() {
+    m_writeSelection->setActive(false);
     m_pieceTableInstance->getInstance().redo();
     m_cursor->cursorRedo();
-    m_lineBuffer->getLines();
-    m_scroll->updateScroll(m_width, m_height);
-    m_scroll->updateMaxScroll(m_width, m_height);
+    updateStateForTextChange(true, 0);
+    updateStateForCursorMovement();
 }
 
 void TextBox::newFile() {
@@ -381,8 +388,9 @@ void TextBox::moveCursorRight(bool shift) {
 
     if (shift) {
         m_selection->update(oldCoords, newCoords);
+        updateStateForSelectionChange();
     } else {
-        if (m_selection->getActive()) {
+        if (m_selection->isActive()) {
             m_cursor->setCoords(m_selection->getEnd());
         }
         m_selection->setActive(false);
@@ -399,8 +407,9 @@ void TextBox::moveCursorLeft(bool shift) {
 
     if (shift) {
         m_selection->update(oldCoords, newCoords);
+        updateStateForSelectionChange();
     } else {
-        if (m_selection->getActive()) {
+        if (m_selection->isActive()) {
             m_cursor->setCoords(m_selection->getStart());
         }
         m_selection->setActive(false);
@@ -417,6 +426,7 @@ void TextBox::moveCursorUp(bool shift) {
 
     if (shift) {
         m_selection->update(oldCoords, newCoords);
+        updateStateForSelectionChange();
     } else {
         m_selection->setActive(false);
     }
@@ -432,6 +442,7 @@ void TextBox::moveCursorDown(bool shift) {
 
     if (shift) {
         m_selection->update(oldCoords, newCoords);
+        updateStateForSelectionChange();
     } else {
         m_selection->setActive(false);
     }
@@ -447,6 +458,7 @@ void TextBox::moveCursorToBeginning(bool shift) {
 
     if (shift) {
         m_selection->update(oldCoords, newCoords);
+        updateStateForSelectionChange();
     } else {
         m_selection->setActive(false);
     }
@@ -462,6 +474,7 @@ void TextBox::moveCursorToEnd(bool shift) {
 
     if (shift) {
         m_selection->update(oldCoords, newCoords);
+        updateStateForSelectionChange();
     } else {
         m_selection->setActive(false);
     }
@@ -471,6 +484,7 @@ void TextBox::moveCursorToMousePosition(ImVec2& mousePosition) {
     m_selection->setActive(false);
     auto coords = mousePositionToTextCoordinates(mousePosition);
     m_cursor->setCoords(coords);
+    updateStateForCursorMovement();
 }
 
 void TextBox::setMouseSelection(ImVec2& endPosition, ImVec2& delta) {
@@ -491,6 +505,9 @@ void TextBox::setMouseSelection(ImVec2& endPosition, ImVec2& delta) {
     m_selection->setEnd(endPositionCoords);
     m_selection->setActive(true);
     m_cursor->setCoords(endPositionCoords);
+
+    updateStateForSelectionChange();
+    updateStateForCursorMovement();
 }
 
 void TextBox::mouseWheelScroll(bool shift, float &mouseWheel) {
@@ -602,7 +619,7 @@ Theme* TextBox::getTheme() const { return m_theme; }
 
 File* TextBox::getFile() const { return m_file; }
 
-bool TextBox::isSelectionActive() const { return m_selection->getActive(); }
+bool TextBox::isSelectionActive() const { return m_selection->isActive(); }
 
 bool TextBox::isDirty() const { return m_dirty; }
 
@@ -626,7 +643,7 @@ bool TextBox::insertCharToPieceTable(char c) {
 
 // Deletes the text inside a selection if it's active.
 bool TextBox::deleteSelection() {
-    if (!m_selection->getActive())
+    if (!m_selection->isActive())
         return false;
 
     updateUndoRedo();
@@ -640,7 +657,7 @@ bool TextBox::deleteSelection() {
     auto endIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getEnd());
     m_pieceTableInstance->getInstance().deleteText(startIndex, endIndex);
 
-    updateStateForTextChange();
+    updateStateForTextChange(false, endIndex-startIndex);
 
     m_cursor->setCoords(m_selection->getStart());
     updateStateForCursorMovement();
@@ -787,7 +804,35 @@ void TextBox::drawText(ImVec2 textPosition, const std::string &line, size_t inde
     }
 }
 
+void TextBox::drawSelection(Selection* selection, ImVec2 textPosition, std::string& line, size_t i, ThemeColor color) {
+    if (!selection->isActive())
+        return;
+
+    auto overlap = selection->getIntersectionWithLine(i);
+
+    // Draw the selection rectangle if it's active
+    if (selection->isActive() && overlap != std::pair{0, 0}) {
+        auto leftOverlap = overlap.first;
+        auto rightOverlap = overlap.second;
+
+        auto leftString = line.substr(0, leftOverlap);
+        auto middleString = line.substr(leftOverlap, rightOverlap-leftOverlap);
+
+        auto leftStringAdvance = m_cursor->getXAdvance(leftString);
+        auto middleStringAdvance = m_cursor->getXAdvance(middleString);
+
+        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(textPosition.x + leftStringAdvance, textPosition.y),
+                                                  ImVec2(textPosition.x + leftStringAdvance + middleStringAdvance, textPosition.y + ImGui::GetFontSize()),
+                                                  m_theme->getColor(color));
+    }
+}
+
 void TextBox::drawCursor() {
+    if (!m_cursor->getShouldRender()) {
+        m_cursor->updateShouldRender();
+        return;
+    }
+
     m_cursor->calculateWidth();
 
     auto topLeft = m_cursor->getCursorPosition(getTopLeft());
@@ -797,6 +842,8 @@ void TextBox::drawCursor() {
     auto bottomRight = ImVec2(topLeft.x + m_cursor->getWidth(), topLeft.y + ImGui::GetFontSize());
 
     ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getColor(ThemeColor::CursorColor));
+
+    m_cursor->updateShouldRender();
 }
 
 
@@ -1009,15 +1056,36 @@ void TextBox::updateTextBoxSize() {
         m_scroll->updateMaxYScroll(m_height);
 }
 
-void TextBox::updateStateForTextChange() {
+void TextBox::updateStateForTextChange(bool isInsert, size_t size) {
+    updateWriteSelection(isInsert, size);
     m_lineBuffer->getLines();
     m_scroll->updateMaxScroll(m_width, m_height);
     m_dirty = true;
 }
 
+void TextBox::updateWriteSelection(bool isInsert, size_t size) {
+    if (!m_writeSelection->isActive() || size == 0)
+        return;
+
+    if (isInsert)
+        m_writeSelection->moveEndRight(size);
+    else
+        m_writeSelection->moveEndLeft(size);
+}
+
 void TextBox::updateStateForCursorMovement() {
+    if (m_writeSelection->isActive()) {
+        m_cursor->clipCursor(m_writeSelection->getStart(), m_writeSelection->getEnd());
+    }
     m_scroll->updateScroll(m_width, m_height);
 }
+
+void TextBox::updateStateForSelectionChange() {
+    if (m_writeSelection->isActive() && m_selection->isActive())
+        m_selection->clipSelection(m_writeSelection->getStart(), m_writeSelection->getEnd());
+}
+
+
 
 
 

@@ -10,7 +10,7 @@
 #include <set>
 #include <sstream>
 #include <unordered_map>
-#include "Theme.h"
+#include "../GUI/Theme.h"
 #include "lexertk.hpp"
 #include "LanguageManager.h"
 

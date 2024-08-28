@@ -10,27 +10,27 @@ TextCoordinates& TextCoordinates::operator=(const TextCoordinates &other) {
     return *this;
 }
 
-bool TextCoordinates::operator==(const TextCoordinates &other) {
+bool TextCoordinates::operator==(const TextCoordinates &other) const {
     return m_row == other.m_row && m_col == other.m_col;
 }
 
-bool TextCoordinates::operator!=(const TextCoordinates &other) {
+bool TextCoordinates::operator!=(const TextCoordinates &other) const {
     return m_row != other.m_row || m_col == other.m_col;
 }
 
-bool TextCoordinates::operator<(const TextCoordinates &other) {
+bool TextCoordinates::operator<(const TextCoordinates &other) const {
     return (m_row < other.m_row) || (m_row == other.m_row && m_col < other.m_col);
 }
 
-bool TextCoordinates::operator>(const TextCoordinates &other) {
+bool TextCoordinates::operator>(const TextCoordinates &other) const {
     return (m_row > other.m_row) || (m_row == other.m_row && m_col > other.m_col);
 }
 
-bool TextCoordinates::operator<=(const TextCoordinates &other) {
+bool TextCoordinates::operator<=(const TextCoordinates &other) const {
     return ((m_row < other.m_row) || (m_row == other.m_row && m_col < other.m_col)) || (m_row == other.m_row && m_col == other.m_col);
 }
 
-bool TextCoordinates::operator>=(const TextCoordinates &other) {
+bool TextCoordinates::operator>=(const TextCoordinates &other) const {
     return ((m_row > other.m_row) || (m_row == other.m_row && m_col > other.m_col)) || (m_row == other.m_row && m_col == other.m_col);
 }
 

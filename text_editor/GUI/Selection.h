@@ -5,7 +5,7 @@
 #ifndef TEXT_EDITOR_SELECTION_H
 #define TEXT_EDITOR_SELECTION_H
 
-#include "TextCoordinates.h"
+#include "TextPosition.h"
 #include "LineBuffer.h"
 
 class Selection {
@@ -15,25 +15,28 @@ public:
 
     void update(TextCoordinates& oldCoords, TextCoordinates& newCoords);
     void selectAll(TextCoordinates& newCoords);
-    void moveEndRight();
-    void moveEndLeft();
+
+    void moveStartRight(size_t times = 1);
+    void moveStartLeft(size_t times = 1);
+    void moveEndRight(size_t times = 1);
+    void moveEndLeft(size_t times = 1);
 
     std::string getSelectionText();
+    std::pair<size_t, size_t> getIntersectionWithLine(size_t lineIndex);
+    void clipSelection(const TextCoordinates& start, const TextCoordinates& end);
 
-    bool getActive() const;
+    bool isActive() const;
     const TextCoordinates& getStart() const;
     const TextCoordinates& getEnd() const;
 
     void setActive(bool active);
     void setStart(const TextCoordinates& coords);
     void setEnd(const TextCoordinates& coords);
-
-    std::pair<size_t, size_t> getIntersectionWithLine(size_t lineIndex);
 private:
 
     bool m_active;
-    TextCoordinates m_start;
-    TextCoordinates m_end;
+    TextPosition m_start;
+    TextPosition m_end;
     LineBuffer* m_lineBuffer;
 };
 

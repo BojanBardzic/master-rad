@@ -15,7 +15,7 @@
 #include "../PieceTable/PieceTableInstance.h"
 #include "Selection.h"
 #include "Scroll.h"
-#include "TextHighlighter.h"
+#include "../SyntaxHiglighting/TextHighlighter.h"
 #include "Theme.h"
 #include "ThemeManager.h"
 
@@ -38,6 +38,8 @@ public:
     void deleteChar();
     void deleteLine();
     void selectAll();
+    void activateWriteSelection();
+    void deactivateWriteSelection();
     void cut();
     void copy();
     void paste();
@@ -97,6 +99,7 @@ private:
 
     void drawRectangle(ImVec2 currentPosition, float& lineHeight);
     void drawText(ImVec2 textPosition, const std::string& line, size_t index);
+    void drawSelection(Selection* selection, ImVec2 textPosition, std::string& line, size_t i, ThemeColor color);
     void drawCursor();
     void drawScrollBars();
     void drawHorizontalScrollbar();
@@ -117,14 +120,17 @@ private:
 
     void updateUndoRedo();
     void updateTextBoxSize();
-    void updateStateForTextChange();
+    void updateStateForTextChange(bool isInsert, size_t size);
+    void updateWriteSelection(bool isInsert, size_t size);
     void updateStateForCursorMovement();
+    void updateStateForSelectionChange();
 private:
     PieceTableInstance* m_pieceTableInstance;
     LineBuffer* m_lineBuffer;
     File* m_file;
     Cursor* m_cursor;
     Selection* m_selection;
+    Selection* m_writeSelection;
     Scroll* m_scroll;
     Font* m_font;
     Font* m_statusBarFont;

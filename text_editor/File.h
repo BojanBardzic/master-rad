@@ -7,7 +7,7 @@
 
 #include <string>
 #include <unordered_map>
-#include "GUI/LanguageMode.h"
+#include "SyntaxHiglighting/LanguageMode.h"
 
 class File {
 public:

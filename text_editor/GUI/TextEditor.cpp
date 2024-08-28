@@ -138,6 +138,8 @@ void TextEditor::handleKeyboardInput() {
             m_textBox->increaseFontSize();
         } else if (ctrl && isKeyPressed(ImGuiKey_KeypadSubtract)) {
             m_textBox->decreaseFontSize();
+        } else if (isKeyPressed(ImGuiKey_Escape)) {
+            m_textBox->deactivateWriteSelection();
         } else if (ctrl && isKeyPressed(ImGuiKey_A)) {
             m_textBox->selectAll();
         } else if (ctrl && isKeyPressed(ImGuiKey_X)) {
@@ -158,6 +160,8 @@ void TextEditor::handleKeyboardInput() {
             saveAs();
         } else if (ctrl && isKeyPressed(ImGuiKey_S, false)) {
             save();
+        } else if (ctrl && isKeyPressed(ImGuiKey_W, false)) {
+            m_textBox->activateWriteSelection();
         }
 
         if (!io.InputQueueCharacters.empty()) {

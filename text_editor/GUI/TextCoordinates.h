@@ -9,12 +9,12 @@
 class TextCoordinates {
 public:
     TextCoordinates& operator=(const TextCoordinates& other);
-    bool operator==(const TextCoordinates& other);
-    bool operator!=(const TextCoordinates& other);
-    bool operator<(const TextCoordinates& other);
-    bool operator>(const TextCoordinates& other);
-    bool operator<=(const TextCoordinates& other);
-    bool operator>=(const TextCoordinates& other);
+    bool operator==(const TextCoordinates& other) const;
+    bool operator!=(const TextCoordinates& other) const;
+    bool operator<(const TextCoordinates& other) const;
+    bool operator>(const TextCoordinates& other) const;
+    bool operator<=(const TextCoordinates& other) const;
+    bool operator>=(const TextCoordinates& other) const;
 
     TextCoordinates(size_t row = 1, size_t col = 1);
     ~TextCoordinates();

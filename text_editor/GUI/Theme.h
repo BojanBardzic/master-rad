@@ -6,7 +6,7 @@
 #define TEXT_EDITOR_THEME_H
 
 #include "imgui.h"
-#include "TextHighlighter.h"
+#include "../SyntaxHiglighting/TextHighlighter.h"
 #include <string>
 #include <unordered_map>
 
@@ -20,6 +20,7 @@ enum ThemeColor {
     CommentColor,
     CursorColor,
     SelectColor,
+    WriteSelectColor,
     ScrollbarPrimaryColor,
     ScrollbarSecondaryColor,
 };
@@ -28,7 +29,7 @@ class Theme {
 public:
     Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImColor stringColor, ImColor numberColor,
           ImColor keywordColor, ImColor preprocessorColor, ImColor commentColor, ImColor cursorColor, ImColor selectColor,
-          ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor);
+          ImColor writeSelectColor, ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor);
 
     ~Theme();
 

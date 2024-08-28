@@ -37,8 +37,8 @@ add_executable(text_editor
         GUI/Theme.h
         GUI/ThemeManager.cpp
         GUI/ThemeManager.h
-        GUI/TextHighlighter.cpp
-        GUI/TextHighlighter.h
+        SyntaxHiglighting/TextHighlighter.cpp
+        SyntaxHiglighting/TextHighlighter.h
         PieceTable/PieceDescriptor.cpp
         PieceTable/PieceDescriptor.h
         PieceTable/SourceType.h
@@ -55,7 +55,7 @@ add_executable(text_editor
         File.cpp
         File.h
         ${LEXER_PATH}/lexertk.hpp
-        GUI/LanguageMode.h GUI/Language.cpp GUI/Language.h GUI/LanguageManager.cpp GUI/LanguageManager.h)
+        SyntaxHiglighting/LanguageMode.h SyntaxHiglighting/Language.cpp SyntaxHiglighting/Language.h SyntaxHiglighting/LanguageManager.cpp SyntaxHiglighting/LanguageManager.h GUI/TextPosition.cpp GUI/TextPosition.h)
 
 file( GLOB LIB_SOURCES ${IMGUI_PATH}/*.cpp ${IMGUI_BACKENDS_PATH}/imgui_impl_win32.cpp ${IMGUI_BACKENDS_PATH}/imgui_impl_dx12.cpp)
 file( GLOB LIB_HEADERS ${IMGUI_PATH}/*.h ${IMGUI_BACKENDS_PATH}/imgui_impl_win32.h ${IMGUI_BACKENDS_PATH}/imgui_impl_dx12.h)

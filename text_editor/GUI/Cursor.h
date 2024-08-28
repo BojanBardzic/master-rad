@@ -14,17 +14,17 @@
 #include <stack>
 
 #include "LineBuffer.h"
-#include "TextCoordinates.h"
+#include "TextPosition.h"
 
 class Cursor {
 public:
     Cursor(LineBuffer* lineBuffer, size_t row = 1, size_t col = 1);
     ~Cursor();
 
-    void moveRight();
-    void moveLeft();
-    void moveUp();
-    void moveDown();
+    void moveRight(size_t times = 1);
+    void moveLeft(size_t times = 1);
+    void moveUp(size_t times = 1);
+    void moveDown(size_t times = 1);
     void moveToBeginning();
     void moveToEnd();
     void moveToEndOfFile();
@@ -47,6 +47,8 @@ public:
     void setCol(const size_t& col);
     void setCoords(const TextCoordinates& coords);
 
+    void clipCursor(const TextCoordinates& start, const TextCoordinates& end);
+
     void calculateWidth();
     void updateShouldRender();
 
@@ -54,12 +56,11 @@ public:
     float getXAdvance(const std::string& str);
 private:
     void resetTimer();
-    void correctColumn();
 
     void clearUndoStack();
     void clearRedoStack();
 
-    TextCoordinates m_coord;
+    TextPosition m_position;
     LineBuffer* m_lineBuffer;
     float m_width;
     std::stack<TextCoordinates> m_cursorUndoStack;

@@ -6,7 +6,7 @@
 
 Theme::Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImColor stringColor, ImColor numberColor,
              ImColor keywordColor, ImColor preprocessorColor, ImColor commentColor, ImColor cursorColor, ImColor selectColor,
-             ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor) : m_name(name) {
+             ImColor writeSelectColor, ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor) : m_name(name) {
 
     m_colors.insert({ThemeColor::BackgroundColor, backgroundColor});
     m_colors.insert({ThemeColor::TextColor, textColor});
@@ -17,6 +17,7 @@ Theme::Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImCol
     m_colors.insert({ThemeColor::CommentColor, commentColor});
     m_colors.insert({ThemeColor::CursorColor, cursorColor});
     m_colors.insert({ThemeColor::SelectColor, selectColor});
+    m_colors.insert({ThemeColor::WriteSelectColor, writeSelectColor});
     m_colors.insert({ThemeColor::ScrollbarPrimaryColor, scrollbarPrimaryColor});
     m_colors.insert({ThemeColor::ScrollbarSecondaryColor, scrollbarSecondaryColor});
 }
