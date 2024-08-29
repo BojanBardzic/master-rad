@@ -621,6 +621,8 @@ File* TextBox::getFile() const { return m_file; }
 
 bool TextBox::isSelectionActive() const { return m_selection->isActive(); }
 
+bool TextBox::isWriteSelectionActive() const { return m_writeSelection->isActive(); }
+
 bool TextBox::isDirty() const { return m_dirty; }
 
 bool TextBox::isUndoEmpty() const { return m_pieceTableInstance->getInstance().isUndoEmpty(); }

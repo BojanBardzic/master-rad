@@ -80,6 +80,7 @@ public:
     Theme* getTheme() const;
     File* getFile() const;
     bool isSelectionActive() const;
+    bool isWriteSelectionActive() const;
     bool isDirty() const;
     bool isUndoEmpty() const;
     bool isRedoEmpty() const;

@@ -98,6 +98,21 @@ void TextEditor::drawMenu() {
             m_clickedOnMenu = false;
         }
 
+        if (ImGui::BeginMenu("Tools")) {
+            m_clickedOnMenu = true;
+
+            if (ImGui::MenuItem("Edit narrowing", "", m_textBox->isWriteSelectionActive())) {
+                if (m_textBox->isWriteSelectionActive())
+                    m_textBox->deactivateWriteSelection();
+                else
+                    m_textBox->activateWriteSelection();
+            }
+
+            ImGui::EndMenu();
+        } else {
+            m_clickedOnMenu = false;
+        }
+
         ImGui::EndMainMenuBar();
     }
 
