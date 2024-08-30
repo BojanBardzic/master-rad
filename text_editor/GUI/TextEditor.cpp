@@ -101,14 +101,14 @@ void TextEditor::drawMenu() {
         if (ImGui::BeginMenu("Tools")) {
             m_clickedOnMenu = true;
 
-            if (ImGui::MenuItem("Edit narrowing", "", m_textBox->isWriteSelectionActive())) {
+            if (ImGui::MenuItem("Edit narrowing", "Ctrl+W", m_textBox->isWriteSelectionActive())) {
                 if (m_textBox->isWriteSelectionActive())
                     m_textBox->deactivateWriteSelection();
                 else
                     m_textBox->activateWriteSelection();
             }
 
-            if (ImGui::MenuItem("Rectangular selection", "", m_textBox->isRectangularSelectionActive())) {
+            if (ImGui::MenuItem("Rectangular selection", "Ctrl+R", m_textBox->isRectangularSelectionActive())) {
                 m_textBox->toggleRectangularSelection();
             }
 
@@ -181,6 +181,8 @@ void TextEditor::handleKeyboardInput() {
             save();
         } else if (ctrl && isKeyPressed(ImGuiKey_W, false)) {
             m_textBox->activateWriteSelection();
+        } else if (ctrl && isKeyPressed(ImGuiKey_R, false)) {
+            m_textBox->toggleRectangularSelection();
         }
 
         if (!io.InputQueueCharacters.empty()) {
