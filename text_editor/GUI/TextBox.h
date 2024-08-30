@@ -40,6 +40,7 @@ public:
     void selectAll();
     void activateWriteSelection();
     void deactivateWriteSelection();
+    void toggleRectangularSelection();
     void cut();
     void copy();
     void paste();
@@ -81,6 +82,7 @@ public:
     File* getFile() const;
     bool isSelectionActive() const;
     bool isWriteSelectionActive() const;
+    bool isRectangularSelectionActive() const;
     bool isDirty() const;
     bool isUndoEmpty() const;
     bool isRedoEmpty() const;

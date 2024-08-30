@@ -5,7 +5,7 @@
 #include "Selection.h"
 
 Selection::Selection(LineBuffer *lineBuffer, size_t startRow, size_t startCol, size_t endRow, size_t endCol)
-    : m_lineBuffer(lineBuffer), m_start(TextCoordinates(startRow, startCol), lineBuffer), m_end(TextCoordinates(endRow, endCol), lineBuffer), m_active(false) {}
+    : m_lineBuffer(lineBuffer), m_start(TextCoordinates(startRow, startCol), lineBuffer), m_end(TextCoordinates(endRow, endCol), lineBuffer), m_active(false), m_rectangular(false) {}
 
 Selection::~Selection() {}
 
@@ -67,18 +67,24 @@ void Selection::moveEndLeft(size_t times) {
 
 
 std::string Selection::getSelectionText() {
+
     std::string result;
     TextCoordinates it = m_start.getCoords();
 
+    // Get the pointer to the starting line
     std::string* line = &m_lineBuffer->lineAt(it.m_row-1);
 
+    // Iterate until we reach the end of the selection
     while (it < m_end.getCoords()) {
-        if (it.m_col > line->size()) {
+        // If out of bounds move on to the next line
+        if (it.m_col > line->size() || (m_rectangular && it.m_col >= m_end.getCoords().m_col)) {
             result += '\n';
             it.m_row += 1;
-            it.m_col = 1;
+            it.m_col = m_rectangular ? m_start.getCoords().m_col : 1;
+
             line = &m_lineBuffer->lineAt(it.m_row-1);
         } else {
+            // Add the character to result and increase the column by 1
             if (!line->empty())
                 result.push_back(line->at(it.m_col-1));
 
@@ -90,6 +96,7 @@ std::string Selection::getSelectionText() {
 }
 
 std::pair<size_t, size_t> Selection::getIntersectionWithLine(size_t lineIndex) {
+
     if (m_lineBuffer->isEmpty())
         return {0, 0};
 
@@ -99,15 +106,29 @@ std::pair<size_t, size_t> Selection::getIntersectionWithLine(size_t lineIndex) {
     auto start = m_start.getCoords();
     auto end = m_end.getCoords();
 
+    if (m_rectangular) {
+        // If inside the rectangle return a row of the rectangle, else return empty intersection
+        if (!line.empty() && start.m_row <= lineRow && end.m_row >= lineRow) {
+            return {std::min(start.m_col-1, line.size()), std::min(end.m_col-1, line.size())};
+        } else {
+            return {0, 0};
+        }
+    }
+
     if (start.m_row < lineRow && end.m_row > lineRow) {
+        // If completely inside the selection return the whole line
         return {0, line.size()};
     } else if (start.m_row == lineRow && end.m_row == lineRow) {
+        // If the entire selection is in this line return the selection columns
         return {start.m_col-1, end.m_col-1};
     } else if (start.m_row == lineRow && end.m_row > lineRow) {
+        // If the selection starts in this line return the start of the selection to the end of the line
         return {start.m_col-1, line.size()};
     } else if (start.m_row < lineRow && end.m_row == lineRow) {
+        // If the selection ends here return the beginning of the line until the end of the selection
         return {0, end.m_col-1};
     } else {
+        // Else there is no intersection
         return {0, 0};
     }
 }
@@ -119,15 +140,21 @@ void Selection::clipSelection(const TextCoordinates &start, const TextCoordinate
 
 bool Selection::isActive() const { return m_active; }
 
+bool Selection::isRectangular() const { return m_rectangular; }
+
 const TextCoordinates& Selection::getStart() const { return m_start.getCoords(); }
 
 const TextCoordinates& Selection::getEnd() const { return m_end.getCoords(); }
 
 void Selection::setActive(bool active) { m_active = active; }
 
+void Selection::setRectangular(bool rectangular) { m_rectangular = rectangular; }
+
 void Selection::setStart(const TextCoordinates& coords) { m_start.setCoords(coords); }
 
 void Selection::setEnd(const TextCoordinates& coords) { m_end.setCoords(coords); }
+
+
 
 
 

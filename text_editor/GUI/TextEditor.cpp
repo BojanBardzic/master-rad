@@ -108,6 +108,10 @@ void TextEditor::drawMenu() {
                     m_textBox->activateWriteSelection();
             }
 
+            if (ImGui::MenuItem("Rectangular selection", "", m_textBox->isRectangularSelectionActive())) {
+                m_textBox->toggleRectangularSelection();
+            }
+
             ImGui::EndMenu();
         } else {
             m_clickedOnMenu = false;

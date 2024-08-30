@@ -26,15 +26,17 @@ public:
     void clipSelection(const TextCoordinates& start, const TextCoordinates& end);
 
     bool isActive() const;
+    bool isRectangular() const;
     const TextCoordinates& getStart() const;
     const TextCoordinates& getEnd() const;
 
     void setActive(bool active);
+    void setRectangular(bool rectangular);
     void setStart(const TextCoordinates& coords);
     void setEnd(const TextCoordinates& coords);
 private:
-
     bool m_active;
+    bool m_rectangular;
     TextPosition m_start;
     TextPosition m_end;
     LineBuffer* m_lineBuffer;

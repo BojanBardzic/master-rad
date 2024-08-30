@@ -290,6 +290,11 @@ void TextBox::deactivateWriteSelection() {
     }
 }
 
+void TextBox::toggleRectangularSelection() {
+    deactivateWriteSelection();
+    m_selection->setRectangular(!m_selection->isRectangular());
+}
+
 void TextBox::cut() {
     if (m_selection->isActive()) {
         copySelectionToClipboard();
@@ -622,6 +627,8 @@ File* TextBox::getFile() const { return m_file; }
 bool TextBox::isSelectionActive() const { return m_selection->isActive(); }
 
 bool TextBox::isWriteSelectionActive() const { return m_writeSelection->isActive(); }
+
+bool TextBox::isRectangularSelectionActive() const { return m_selection->isRectangular(); }
 
 bool TextBox::isDirty() const { return m_dirty; }
 
@@ -1086,6 +1093,11 @@ void TextBox::updateStateForSelectionChange() {
     if (m_writeSelection->isActive() && m_selection->isActive())
         m_selection->clipSelection(m_writeSelection->getStart(), m_writeSelection->getEnd());
 }
+
+
+
+
+
 
 
 
