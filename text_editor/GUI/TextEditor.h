@@ -20,14 +20,16 @@ public:
     void draw();
 private:
     void drawMenu();
+    void drawStatusBar();
+
+    void toggleSplitScreen();
+    void updateTextBoxMargins();
 
     void handleKeyboardInput();
     void handleMouseInput();
 
     inline bool isKeyPressed(ImGuiKey&& key, bool repeat = true);
-    bool isInsideTextBox(ImVec2& mousePosition);
-    bool isInsideHorizontalScrollbar(ImVec2& mousePosition);
-    bool isInsideVerticalScrollbar(ImVec2& mousePosition);
+    bool isWindowSizeChanged();
 
     void newFile();
     void open();
@@ -41,9 +43,13 @@ private:
 
     static std::string wStringToString(const std::wstring& wstring);
 
+    TextBox* m_activeTextBox;
     TextBox* m_textBox;
+    TextBox* m_secondTextBox;
     Font* m_menuFont;
-    bool m_clickedOnMenu;
+    ImVec2 m_size;
+    bool m_splitScreen;
+    bool m_menuActive;
     const std::string m_textFontName = "Consolas";
     const std::string m_menuFontName = "Segoe UI";
     const ThemeName m_defaultTheme = ThemeName::Light;

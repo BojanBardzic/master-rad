@@ -4,16 +4,24 @@
 
 #include "TextEditor.h"
 
-TextEditor::TextEditor() : m_clickedOnMenu(false) {
+TextEditor::TextEditor() : m_menuActive(false), m_splitScreen(false) {
+
     FontManager::init();
     m_menuFont = new Font(m_menuFontName, m_menuFontSize);
 
     m_textBox = new TextBox(m_defaultWidth, m_defaultHeight, m_textFontName, m_defaultTheme);
     m_textBox->setWidth(500.0f);
+
+    m_secondTextBox = new TextBox(m_defaultWidth, m_defaultHeight, m_textFontName, m_defaultTheme, m_textBox->getPieceTableInstance());
+
+    m_activeTextBox = m_textBox;
+
+    m_size = {0.0f, 0.0f};
 }
 
 TextEditor::~TextEditor() {
     delete m_textBox;
+    delete m_secondTextBox;
 }
 
 void TextEditor::draw() {
@@ -27,20 +35,38 @@ void TextEditor::draw() {
 
     // Handle inputs;
     handleKeyboardInput();
-    if (!m_clickedOnMenu)
+    if (!m_menuActive)
         handleMouseInput();
+
+    if (m_splitScreen && m_activeTextBox == m_textBox) {
+        m_secondTextBox->getLines();
+    } else if (m_splitScreen && m_activeTextBox == m_secondTextBox) {
+        m_textBox->getLines();
+    }
 
     // Draw the text box
     m_textBox->draw();
+    if (m_splitScreen)
+        m_secondTextBox->draw();
+
+    if (isWindowSizeChanged())
+        updateTextBoxMargins();
+
+
+    // Draw the status bar
+    drawStatusBar();
+
     ImGui::End();
 }
 
 void TextEditor::drawMenu() {
     ImGui::PushFont(m_menuFont->getFont());
+    bool clickedOnMenu = false;
 
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            m_clickedOnMenu = true;
+            clickedOnMenu = true;
+            m_menuActive = true;
 
             if (ImGui::MenuItem("New", "Ctrl+N")) {
                 newFile();
@@ -56,71 +82,107 @@ void TextEditor::drawMenu() {
             }
 
             ImGui::EndMenu();
-        } else {
-            m_clickedOnMenu = false;
         }
 
         if (ImGui::BeginMenu("Edit")) {
-            m_clickedOnMenu = true;
-            if (ImGui::MenuItem("Undo", "Ctrl+Z", false, !m_textBox->isUndoEmpty())) {
-                m_textBox->undo();
+            clickedOnMenu = true;
+            m_menuActive = true;
+
+            if (ImGui::MenuItem("Undo", "Ctrl+Z", false, !m_activeTextBox->isUndoEmpty())) {
+                m_activeTextBox->undo();
             }
-            if (ImGui::MenuItem("Redo", "Ctrl+Y", false, !m_textBox->isRedoEmpty())) {
-                m_textBox->redo();
+            if (ImGui::MenuItem("Redo", "Ctrl+Y", false, !m_activeTextBox->isRedoEmpty())) {
+                m_activeTextBox->redo();
             }
-            if (ImGui::MenuItem("Cut", "Ctrl+X", false, m_textBox->isSelectionActive())) {
-                m_textBox->cut();
+            if (ImGui::MenuItem("Cut", "Ctrl+X", false, m_activeTextBox->isSelectionActive())) {
+                m_activeTextBox->cut();
             }
-            if (ImGui::MenuItem("Copy", "Ctrl+C", false, m_textBox->isSelectionActive())) {
-                m_textBox->copy();
+            if (ImGui::MenuItem("Copy", "Ctrl+C", false, m_activeTextBox->isSelectionActive())) {
+                m_activeTextBox->copy();
             }
             if (ImGui::MenuItem("Paste", "Ctrl+V")) {
-                m_textBox->paste();
+                m_activeTextBox->paste();
             }
 
             ImGui::EndMenu();
-        } else {
-            m_clickedOnMenu = false;
         }
 
         if (ImGui::BeginMenu("Theme")) {
-            m_clickedOnMenu = true;
+            clickedOnMenu = true;
+            m_menuActive = true;
 
             if (ImGui::MenuItem("Light", "", false, m_textBox->getTheme() != ThemeManager::getTheme(ThemeName::Light))) {
                 m_textBox->setTheme(ThemeManager::getTheme(ThemeName::Light));
+                m_secondTextBox->setTheme(ThemeManager::getTheme(ThemeName::Light));
             }
             if (ImGui::MenuItem("Dark", "", false, m_textBox->getTheme() != ThemeManager::getTheme(ThemeName::Dark))) {
                 m_textBox->setTheme(ThemeManager::getTheme(ThemeName::Dark));
+                m_secondTextBox->setTheme(ThemeManager::getTheme(ThemeName::Dark));
             }
 
             ImGui::EndMenu();
-        } else {
-            m_clickedOnMenu = false;
         }
 
         if (ImGui::BeginMenu("Tools")) {
-            m_clickedOnMenu = true;
+            clickedOnMenu = true;
+            m_menuActive = true;
 
-            if (ImGui::MenuItem("Edit narrowing", "Ctrl+W", m_textBox->isWriteSelectionActive())) {
-                if (m_textBox->isWriteSelectionActive())
-                    m_textBox->deactivateWriteSelection();
+            if (ImGui::MenuItem("Edit narrowing", "Ctrl+W", m_activeTextBox->isWriteSelectionActive())) {
+                if (m_activeTextBox->isWriteSelectionActive())
+                    m_activeTextBox->deactivateWriteSelection();
                 else
-                    m_textBox->activateWriteSelection();
+                    m_activeTextBox->activateWriteSelection();
             }
-
             if (ImGui::MenuItem("Rectangular selection", "Ctrl+R", m_textBox->isRectangularSelectionActive())) {
                 m_textBox->toggleRectangularSelection();
+                m_secondTextBox->toggleRectangularSelection();
+            }
+
+            if (ImGui::MenuItem("Split screen", "", m_splitScreen)) {
+                toggleSplitScreen();
             }
 
             ImGui::EndMenu();
-        } else {
-            m_clickedOnMenu = false;
         }
+
+        if (!clickedOnMenu)
+            m_menuActive = false;
 
         ImGui::EndMainMenuBar();
     }
 
     ImGui::PopFont();
+}
+
+void TextEditor::drawStatusBar() {
+    float offset = 15.0f;
+
+    ImGui::PushFont(m_menuFont->getFont());
+
+    auto topLeft = m_textBox->getTopLeft();
+    auto textPosition = ImVec2(topLeft.x, topLeft.y + m_activeTextBox->getHeight() + offset + 5.0f);
+    auto text = m_activeTextBox->getStatusBarText();
+    ImGui::GetWindowDrawList()->AddText(textPosition, ImColor(255, 255, 255), text.c_str());
+
+    ImGui::PopFont();
+}
+
+void TextEditor::toggleSplitScreen() {
+    m_splitScreen = !m_splitScreen;
+    updateTextBoxMargins();
+}
+
+void TextEditor::updateTextBoxMargins() {
+    std::cerr << "Window width: " << m_size.x << std::endl;
+
+    if (m_splitScreen) {
+        auto halfWidth = m_size.x / 2.0f;
+
+        m_textBox->setBottomRightMargin({5.0f + halfWidth, 5.0f});
+        m_secondTextBox->setTopLeftMargin({halfWidth, 0.0f});
+    } else {
+        m_textBox->setBottomRightMargin({5.0f, 5.0f});
+    }
 }
 
 void TextEditor::handleKeyboardInput() {
@@ -132,45 +194,45 @@ void TextEditor::handleKeyboardInput() {
     if (ImGui::IsWindowFocused()) {
 
         if (isKeyPressed(ImGuiKey_RightArrow)) {
-            m_textBox->moveCursorRight(shift);
+            m_activeTextBox->moveCursorRight(shift);
         } else if (isKeyPressed(ImGuiKey_LeftArrow)) {
-            m_textBox->moveCursorLeft(shift);
+            m_activeTextBox->moveCursorLeft(shift);
         } else if (isKeyPressed(ImGuiKey_UpArrow)) {
-            m_textBox->moveCursorUp(shift);
+            m_activeTextBox->moveCursorUp(shift);
         } else if (isKeyPressed(ImGuiKey_DownArrow)) {
-            m_textBox->moveCursorDown(shift);
+            m_activeTextBox->moveCursorDown(shift);
         } else if (isKeyPressed(ImGuiKey_End)) {
-            m_textBox->moveCursorToEnd(shift);
+            m_activeTextBox->moveCursorToEnd(shift);
         } else if (isKeyPressed(ImGuiKey_Home)) {
-            m_textBox->moveCursorToBeginning(shift);
+            m_activeTextBox->moveCursorToBeginning(shift);
         } else if (isKeyPressed(ImGuiKey_Enter)) {
-            m_textBox->enterChar('\n');
+            m_activeTextBox->enterChar('\n');
         } else if (isKeyPressed(ImGuiKey_Tab)) {
-            m_textBox->tab(shift);
+            m_activeTextBox->tab(shift);
         } else if (isKeyPressed(ImGuiKey_Backspace)) {
-            m_textBox->backspace();
+            m_activeTextBox->backspace();
         } else if (shift && isKeyPressed(ImGuiKey_Delete)) {
-            m_textBox->deleteLine();
+            m_activeTextBox->deleteLine();
         } else if (isKeyPressed(ImGuiKey_Delete)) {
-            m_textBox->deleteChar();
+            m_activeTextBox->deleteChar();
         } else if (ctrl && isKeyPressed(ImGuiKey_KeypadAdd)) {
-            m_textBox->increaseFontSize();
+            m_activeTextBox->increaseFontSize();
         } else if (ctrl && isKeyPressed(ImGuiKey_KeypadSubtract)) {
-            m_textBox->decreaseFontSize();
+            m_activeTextBox->decreaseFontSize();
         } else if (isKeyPressed(ImGuiKey_Escape)) {
-            m_textBox->deactivateWriteSelection();
+            m_activeTextBox->deactivateWriteSelection();
         } else if (ctrl && isKeyPressed(ImGuiKey_A)) {
-            m_textBox->selectAll();
+            m_activeTextBox->selectAll();
         } else if (ctrl && isKeyPressed(ImGuiKey_X)) {
-            m_textBox->cut();
+            m_activeTextBox->cut();
         } else if (ctrl && isKeyPressed(ImGuiKey_C)) {
-            m_textBox->copy();
+            m_activeTextBox->copy();
         } else if (ctrl && isKeyPressed(ImGuiKey_V)) {
-            m_textBox->paste();
+            m_activeTextBox->paste();
         } else if (ctrl && isKeyPressed(ImGuiKey_Z)) {
-            m_textBox->undo();
+            m_activeTextBox->undo();
         } else if (ctrl && isKeyPressed(ImGuiKey_Y)) {
-            m_textBox->redo();
+            m_activeTextBox->redo();
         } else if (ctrl && isKeyPressed(ImGuiKey_N, false)) {
             newFile();
         } else if (ctrl && isKeyPressed(ImGuiKey_O, false)) {
@@ -180,9 +242,9 @@ void TextEditor::handleKeyboardInput() {
         } else if (ctrl && isKeyPressed(ImGuiKey_S, false)) {
             save();
         } else if (ctrl && isKeyPressed(ImGuiKey_W, false)) {
-            m_textBox->activateWriteSelection();
+            m_activeTextBox->activateWriteSelection();
         } else if (ctrl && isKeyPressed(ImGuiKey_R, false)) {
-            m_textBox->toggleRectangularSelection();
+            m_activeTextBox->toggleRectangularSelection();
         }
 
         if (!io.InputQueueCharacters.empty()) {
@@ -191,7 +253,7 @@ void TextEditor::handleKeyboardInput() {
 
                 if (std::isprint(ch)) {
                     std::cerr << "Entering char: " << ch << std::endl;
-                    m_textBox->enterChar(ch);
+                    m_activeTextBox->enterChar(ch);
                 }
             }
             io.InputQueueCharacters.resize(0);
@@ -201,52 +263,51 @@ void TextEditor::handleKeyboardInput() {
 }
 
 void TextEditor::handleMouseInput() {
+
     auto position = ImGui::GetMousePos();
     auto mouseWheel = ImGui::GetIO().MouseWheel;
     auto shift = ImGui::GetIO().KeyShift;
 
     if (ImGui::GetMouseClickedCount(ImGuiMouseButton_Left) > 0) {
-        if (isInsideHorizontalScrollbar(position)) {
-            m_textBox->horizontalBarClick(position);
-        } else if (isInsideVerticalScrollbar(position)) {
-            m_textBox->verticalBarClick(position);
-        } if (isInsideTextBox(position)) {
-            m_textBox->moveCursorToMousePosition(position);
+        if (m_splitScreen && m_textBox != m_activeTextBox && m_textBox->isInsideTextBox(position)) {
+            m_activeTextBox = m_textBox;
+        } else if (m_splitScreen && m_secondTextBox != m_activeTextBox && m_secondTextBox->isInsideTextBox(position)) {
+            m_activeTextBox = m_secondTextBox;
+        } else if (m_activeTextBox->isInsideHorizontalScrollbar(position)) {
+            m_activeTextBox->horizontalBarClick(position);
+        } else if (m_activeTextBox->isInsideVerticalScrollbar(position)) {
+            m_activeTextBox->verticalBarClick(position);
+        } if (m_activeTextBox->isInsideTextBox(position)) {
+            m_activeTextBox->moveCursorToMousePosition(position);
         }
     } else if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
         auto delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left);
         auto previousPosition = ImVec2(position.x - delta.x, position.y - delta.y);
 
-        if (isInsideHorizontalScrollbar(position) && isInsideHorizontalScrollbar(previousPosition)) {
-            m_textBox->horizontalScroll(position, delta);
-        } else if (isInsideVerticalScrollbar(position) && isInsideVerticalScrollbar(previousPosition)) {
-            m_textBox->verticalScroll(position, delta);
-        } else if (isInsideTextBox(position) && isInsideTextBox(previousPosition)) {
-            m_textBox->setMouseSelection(position, delta);
+        if (m_activeTextBox->isInsideHorizontalScrollbar(position) && m_activeTextBox->isInsideHorizontalScrollbar(previousPosition)) {
+            m_activeTextBox->horizontalScroll(position, delta);
+        } else if (m_activeTextBox->isInsideVerticalScrollbar(position) && m_activeTextBox->isInsideVerticalScrollbar(previousPosition)) {
+            m_activeTextBox->verticalScroll(position, delta);
+        } else if (m_activeTextBox->isInsideTextBox(position) && m_activeTextBox->isInsideTextBox(previousPosition)) {
+            m_activeTextBox->setMouseSelection(position, delta);
         }
     } else if (mouseWheel != 0.0f) {
-        m_textBox->mouseWheelScroll(shift, mouseWheel);
+        m_activeTextBox->mouseWheelScroll(shift, mouseWheel);
     }
-}
-
-bool TextEditor::isInsideTextBox(ImVec2& mousePosition) {
-    auto topLeft = ImGui::GetCursorScreenPos();
-    auto bottomRight = ImVec2(topLeft.x + m_textBox->getWidth(), topLeft.y + m_textBox->getHeight());
-    auto rect = MyRectangle(topLeft, bottomRight);
-
-    return MyRectangle::isInsideRectangle(rect, mousePosition);
-}
-
-bool TextEditor::isInsideHorizontalScrollbar(ImVec2 &mousePosition) {
-    return MyRectangle::isInsideRectangle(m_textBox->getHScrollbarRect(), mousePosition);
-}
-
-bool TextEditor::isInsideVerticalScrollbar(ImVec2 &mousePosition) {
-    return MyRectangle::isInsideRectangle(m_textBox->getVScrollbarRect(), mousePosition);
 }
 
 bool TextEditor::isKeyPressed(ImGuiKey&& key, bool repeat) {
     return ImGui::IsKeyPressed(ImGui::GetKeyIndex(key), repeat);
+}
+
+bool TextEditor::isWindowSizeChanged() {
+
+    if (m_size.x != ImGui::GetWindowWidth() || m_size.y != ImGui::GetWindowHeight()) {
+        m_size = {ImGui::GetWindowWidth(), ImGui::GetWindowHeight()};
+        return true;
+    }
+
+    return false;
 }
 
 void TextEditor::newFile() {
@@ -254,7 +315,7 @@ void TextEditor::newFile() {
     if (id == IDCANCEL)
         return;
 
-    m_textBox->newFile();
+    m_activeTextBox->newFile();
 }
 
 void TextEditor::open() {
@@ -265,14 +326,14 @@ void TextEditor::open() {
     auto path = openFileDialog();
 
     if (!path.empty())
-        m_textBox->open(path);
+        m_activeTextBox->open(path);
 }
 
 void TextEditor::save() {
-    if (m_textBox->getFile() == nullptr)
+    if (m_activeTextBox->getFile() == nullptr)
         saveAs();
     else
-        m_textBox->save();
+        m_activeTextBox->save();
 }
 
 void TextEditor::saveAs() {
@@ -281,7 +342,7 @@ void TextEditor::saveAs() {
     if (!path.empty()) {
         if (path.find_last_of('.') == std::string::npos)
             path += ".txt";
-        m_textBox->saveAs(path);
+        m_activeTextBox->saveAs(path);
     }
 }
 
@@ -386,7 +447,7 @@ std::string TextEditor::saveFileDialog() {
 int TextEditor::fileNotSavedWarningMessageBox() {
     std::stringstream stream;
     stream << "Do you want to save changes to "
-           << (m_textBox->getFile() == nullptr ? "Untitled" : m_textBox->getFile()->getName())
+           << (m_activeTextBox->getFile() == nullptr ? "Untitled" : m_activeTextBox->getFile()->getName())
            << "?";
 
 
@@ -401,7 +462,7 @@ int TextEditor::fileNotSavedWarningMessageBox() {
 }
 
 int TextEditor::handleFileNotSaved() {
-    if (m_textBox->isDirty()) {
+    if (m_activeTextBox->isDirty()) {
         auto id = fileNotSavedWarningMessageBox();
 
         if (id == IDYES)
@@ -421,5 +482,9 @@ std::string TextEditor::wStringToString(const std::wstring& wstring) {
 
     return {result};
 }
+
+
+
+
 
 

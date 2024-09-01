@@ -5,15 +5,18 @@
 #include "TextBox.h"
 #include <utility>
 
-TextBox::TextBox(float width, float height, const std::string& fontName, const ThemeName theme) : m_dirty(false), m_file(nullptr) {
+TextBox::TextBox(float width, float height, const std::string& fontName, const ThemeName theme, PieceTableInstance* instance) : m_dirty(false), m_file(nullptr) {
 
-    m_pieceTableInstance = new PieceTableInstance();
+    if (instance == nullptr)
+        m_pieceTableInstance = new PieceTableInstance();
+    else
+        m_pieceTableInstance = instance;
+
     m_lineBuffer = new LineBuffer(m_pieceTableInstance);
     m_cursor = new Cursor(m_lineBuffer);
     m_selection = new Selection(m_lineBuffer);
     m_writeSelection = new Selection(m_lineBuffer);
     m_font = new Font(fontName);
-    m_statusBarFont = new Font("Segoe UI", 19.0f);
     m_scroll = new Scroll(m_lineBuffer, m_cursor, m_font);
     m_theme = ThemeManager::getTheme(theme);
 
@@ -28,7 +31,6 @@ TextBox::TextBox(float width, float height, const std::string& fontName, const T
 TextBox::~TextBox() {
     delete m_scroll;
     delete m_font;
-    delete m_statusBarFont;
     delete m_selection;
     delete m_writeSelection;
     delete m_cursor;
@@ -38,6 +40,7 @@ TextBox::~TextBox() {
 
 // Draws the textBox based on PieceTable data.
 void TextBox::draw() {
+
     if(!m_scroll->isInit())
         m_scroll->init(m_width, m_height);
 
@@ -93,7 +96,7 @@ void TextBox::draw() {
 
     drawCursor();
     drawScrollBars();
-    drawStatusBar();
+    //drawStatusBar();
 
     ImGui::PopFont();
 }
@@ -598,6 +601,20 @@ void TextBox::decreaseFontSize() {
     m_scroll->updateMaxScroll(m_width, m_height);
 }
 
+void TextBox::getLines() { m_lineBuffer->getLines(); }
+
+bool TextBox::isInsideTextBox(const ImVec2& point) {
+    return MyRectangle::isInsideRectangle({getTopLeft(), getBottomRight()}, point);
+}
+
+bool TextBox::isInsideHorizontalScrollbar(const ImVec2 &point) {
+    return MyRectangle::isInsideRectangle(m_scroll->getHScrollbarRect(), point);
+}
+
+bool TextBox::isInsideVerticalScrollbar(const ImVec2 &point) {
+    return MyRectangle::isInsideRectangle(m_scroll->getVScrollbarRect(), point);
+}
+
 float TextBox::getWidth() const { return m_width; }
 
 float TextBox::getHeight() const { return m_height; }
@@ -612,6 +629,10 @@ ImVec2 TextBox::getBottomRight() const {
     return {topLeft.x + m_width, topLeft.y + m_height};
 }
 
+ImVec2 TextBox::getTopLeftMargin() const { return m_topLeftMargin; }
+
+ImVec2 TextBox::getBottomRightMargin() const { return m_bottomRightMargin; }
+
 const MyRectangle &TextBox::getHScrollbarRect() const { return m_scroll->getHScrollbarRect(); }
 
 const MyRectangle &TextBox::getVScrollbarRect() const { return m_scroll->getVScrollbarRect(); }
@@ -623,6 +644,8 @@ Cursor *TextBox::getCursor() const { return m_cursor; }
 Theme* TextBox::getTheme() const { return m_theme; }
 
 File* TextBox::getFile() const { return m_file; }
+
+PieceTableInstance *TextBox::getPieceTableInstance() const { return m_pieceTableInstance; }
 
 bool TextBox::isSelectionActive() const { return m_selection->isActive(); }
 
@@ -641,6 +664,10 @@ void TextBox::setWidth(float width) { m_width = width; }
 void TextBox::setHeight(float height) { m_height = height; }
 
 void TextBox::setTheme(Theme* theme) { m_theme = theme; }
+
+void TextBox::setTopLeftMargin(ImVec2 topLeftMargin) { m_topLeftMargin = topLeftMargin; }
+
+void TextBox::setBottomRightMargin(ImVec2 bottomRightMargin) { m_bottomRightMargin = bottomRightMargin; }
 
 // Inserts a char into the piece table at the current cursor position
 // and returns whether the add buffer was initialized after being flushed
@@ -850,7 +877,8 @@ void TextBox::drawCursor() {
 
     auto bottomRight = ImVec2(topLeft.x + m_cursor->getWidth(), topLeft.y + ImGui::GetFontSize());
 
-    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getColor(ThemeColor::CursorColor));
+    if (isInsideTextBox(topLeft))
+        ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getColor(ThemeColor::CursorColor));
 
     m_cursor->updateShouldRender();
 }
@@ -966,19 +994,6 @@ void TextBox::updateVScrollSelectRect() {
     m_scroll->setVScrollSelectRect(MyRectangle(topLeftScrollSelect, bottomRightScrollSelect));
 }
 
-void TextBox::drawStatusBar() {
-    float offset = 15.0f;
-
-    ImGui::PushFont(m_statusBarFont->getFont());
-
-    auto topLeft = getTopLeft();
-    auto textPosition = ImVec2(topLeft.x, topLeft.y + m_height + offset + 5.0f);
-    auto text = getStatusBarText();
-    ImGui::GetWindowDrawList()->AddText(textPosition, ImColor(255, 255, 255), text.c_str());
-
-    ImGui::PopFont();
-}
-
 std::string TextBox::getStatusBarText() {
     std::stringstream stream;
     stream << (m_file == nullptr ? "Untitled" : m_file->getName()) << (m_dirty ? "*" : " ") << " |  ";
@@ -1043,6 +1058,7 @@ void TextBox::updateUndoRedo() {
 
 // Updates the TextBox size to the size of the window.
 void TextBox::updateTextBoxSize() {
+
     bool changedWidth = false;
     bool changedHeight = false;
 
@@ -1093,6 +1109,20 @@ void TextBox::updateStateForSelectionChange() {
     if (m_writeSelection->isActive() && m_selection->isActive())
         m_selection->clipSelection(m_writeSelection->getStart(), m_writeSelection->getEnd());
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

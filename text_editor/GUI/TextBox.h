@@ -25,8 +25,9 @@
 
 class TextBox {
 public:
-    TextBox(float width, float height,
-            const std::string& fontName, const ThemeName theme);
+    TextBox(float width, float height, const std::string& fontName,
+            const ThemeName theme, PieceTableInstance* instance = nullptr);
+    TextBox(const TextBox& textBox);
     ~TextBox();
 
     void draw();
@@ -70,16 +71,25 @@ public:
     void increaseFontSize();
     void decreaseFontSize();
 
+    void getLines();
+    bool isInsideTextBox(const ImVec2& point);
+    bool isInsideHorizontalScrollbar(const ImVec2& point);
+    bool isInsideVerticalScrollbar(const ImVec2& point);
+
     float getWidth() const;
     float getHeight() const;
     ImVec2 getTopLeft() const;
     ImVec2 getBottomRight() const;
+    ImVec2 getTopLeftMargin() const;
+    ImVec2 getBottomRightMargin() const;
     const MyRectangle& getHScrollbarRect() const;
     const MyRectangle& getVScrollbarRect() const;
     float getScrollbarSize() const;
     Cursor* getCursor() const;
     Theme* getTheme() const;
     File* getFile() const;
+    PieceTableInstance* getPieceTableInstance() const;
+    std::string getStatusBarText();
     bool isSelectionActive() const;
     bool isWriteSelectionActive() const;
     bool isRectangularSelectionActive() const;
@@ -89,6 +99,8 @@ public:
 
     void setWidth(float width);
     void setHeight(float height);
+    void setTopLeftMargin(ImVec2 topLeftMargin);
+    void setBottomRightMargin(ImVec2 bottomRightMargin);
     void setTheme(Theme* theme);
 private:
     bool insertCharToPieceTable(char c);
@@ -114,9 +126,6 @@ private:
     void updateHScrollSelectRect();
     void updateVScrollSelectRect();
     void drawRect(const MyRectangle& rect, const ImColor& color);
-    void drawStatusBar();
-
-    std::string getStatusBarText();
 
     static bool readFromFile(std::string& buffer, const std::string& filePath);
     bool saveToFile();
@@ -136,15 +145,14 @@ private:
     Selection* m_writeSelection;
     Scroll* m_scroll;
     Font* m_font;
-    Font* m_statusBarFont;
     Theme* m_theme;
     bool m_dirty;
     float m_width;
     float m_height;
+    ImVec2 m_topLeftMargin = {0.0f, 0.0f};
+    ImVec2 m_bottomRightMargin = {5.0f, 5.0f};
     const float m_scrollbarSize = 15.0f;
     const float m_minScrollSelectSize = 20.0f;
-    const ImVec2 m_topLeftMargin = {0.0f, 0.0f};
-    const ImVec2 m_bottomRightMargin = {5.0f, 5.0f};
 };
 
 
