@@ -55,7 +55,7 @@ add_executable(text_editor
         File.cpp
         File.h
         ${LEXER_PATH}/lexertk.hpp
-        SyntaxHiglighting/LanguageMode.h SyntaxHiglighting/Language.cpp SyntaxHiglighting/Language.h SyntaxHiglighting/LanguageManager.cpp SyntaxHiglighting/LanguageManager.h GUI/TextPosition.cpp GUI/TextPosition.h)
+        SyntaxHiglighting/LanguageMode.h SyntaxHiglighting/Language.cpp SyntaxHiglighting/Language.h SyntaxHiglighting/LanguageManager.cpp SyntaxHiglighting/LanguageManager.h GUI/TextPosition.cpp GUI/TextPosition.h GUI/ThemeName.h)
 
 file( GLOB LIB_SOURCES ${IMGUI_PATH}/*.cpp ${IMGUI_BACKENDS_PATH}/imgui_impl_win32.cpp ${IMGUI_BACKENDS_PATH}/imgui_impl_dx12.cpp)
 file( GLOB LIB_HEADERS ${IMGUI_PATH}/*.h ${IMGUI_BACKENDS_PATH}/imgui_impl_win32.h ${IMGUI_BACKENDS_PATH}/imgui_impl_dx12.h)

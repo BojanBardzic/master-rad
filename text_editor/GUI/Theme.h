@@ -7,6 +7,7 @@
 
 #include "imgui.h"
 #include "../SyntaxHiglighting/TextHighlighter.h"
+#include "ThemeName.h"
 #include <string>
 #include <unordered_map>
 
@@ -27,16 +28,16 @@ enum ThemeColor {
 
 class Theme {
 public:
-    Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImColor stringColor, ImColor numberColor,
+    Theme(ThemeName name, ImColor backgroundColor, ImColor textColor, ImColor stringColor, ImColor numberColor,
           ImColor keywordColor, ImColor preprocessorColor, ImColor commentColor, ImColor cursorColor, ImColor selectColor,
           ImColor writeSelectColor, ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor);
 
     ~Theme();
 
-    const std::string& getName() const;
+    const ThemeName& getName() const;
     const ImColor& getColor(const ThemeColor& color);
 private:
-    std::string m_name;
+    ThemeName m_name;
     std::unordered_map<ThemeColor, ImColor> m_colors;
 };
 

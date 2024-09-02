@@ -4,19 +4,22 @@
 
 #include "TextEditor.h"
 
-TextEditor::TextEditor() : m_menuActive(false), m_splitScreen(false) {
-
+TextEditor::TextEditor() : m_menuActive(false), m_splitScreen(false), m_size({0.0f, 0.0f}) {
+    // Setup font and theme
     FontManager::init();
     m_menuFont = new Font(m_menuFontName, m_menuFontSize);
 
-    m_textBox = new TextBox(m_defaultWidth, m_defaultHeight, m_textFontName, m_defaultTheme);
+    ThemeManager::init();
+
+    m_textBox = new TextBox(m_defaultWidth, m_defaultHeight, m_textFontName);
     m_textBox->setWidth(500.0f);
 
-    m_secondTextBox = new TextBox(m_defaultWidth, m_defaultHeight, m_textFontName, m_defaultTheme, m_textBox->getPieceTableInstance());
+    m_secondTextBox = new TextBox(m_defaultWidth, m_defaultHeight, m_textFontName, m_textBox->getPieceTableInstance());
 
     m_activeTextBox = m_textBox;
+    m_inactiveTextBox = m_secondTextBox;
 
-    m_size = {0.0f, 0.0f};
+    std::cerr << "Exiting constructor" << std::endl;
 }
 
 TextEditor::~TextEditor() {
@@ -38,11 +41,8 @@ void TextEditor::draw() {
     if (!m_menuActive)
         handleMouseInput();
 
-    if (m_splitScreen && m_activeTextBox == m_textBox) {
-        m_secondTextBox->getLines();
-    } else if (m_splitScreen && m_activeTextBox == m_secondTextBox) {
-        m_textBox->getLines();
-    }
+   if (m_splitScreen)
+       m_inactiveTextBox->getLines();
 
     // Draw the text box
     m_textBox->draw();
@@ -111,13 +111,11 @@ void TextEditor::drawMenu() {
             clickedOnMenu = true;
             m_menuActive = true;
 
-            if (ImGui::MenuItem("Light", "", false, m_textBox->getTheme() != ThemeManager::getTheme(ThemeName::Light))) {
-                m_textBox->setTheme(ThemeManager::getTheme(ThemeName::Light));
-                m_secondTextBox->setTheme(ThemeManager::getTheme(ThemeName::Light));
+            if (ImGui::MenuItem("Light", "", false, ThemeManager::getTheme()->getName() != ThemeName::Light)) {
+                ThemeManager::setTheme(ThemeName::Light);
             }
-            if (ImGui::MenuItem("Dark", "", false, m_textBox->getTheme() != ThemeManager::getTheme(ThemeName::Dark))) {
-                m_textBox->setTheme(ThemeManager::getTheme(ThemeName::Dark));
-                m_secondTextBox->setTheme(ThemeManager::getTheme(ThemeName::Dark));
+            if (ImGui::MenuItem("Dark", "", false, ThemeManager::getTheme()->getName() != ThemeName::Dark)) {
+                ThemeManager::setTheme(ThemeName::Dark);
             }
 
             ImGui::EndMenu();
@@ -169,11 +167,14 @@ void TextEditor::drawStatusBar() {
 
 void TextEditor::toggleSplitScreen() {
     m_splitScreen = !m_splitScreen;
+
+    if (!m_splitScreen)
+        m_activeTextBox = m_textBox;
+
     updateTextBoxMargins();
 }
 
 void TextEditor::updateTextBoxMargins() {
-    std::cerr << "Window width: " << m_size.x << std::endl;
 
     if (m_splitScreen) {
         auto halfWidth = m_size.x / 2.0f;
@@ -245,6 +246,7 @@ void TextEditor::handleKeyboardInput() {
             m_activeTextBox->activateWriteSelection();
         } else if (ctrl && isKeyPressed(ImGuiKey_R, false)) {
             m_activeTextBox->toggleRectangularSelection();
+            m_inactiveTextBox->toggleRectangularSelection();
         }
 
         if (!io.InputQueueCharacters.empty()) {
@@ -269,10 +271,8 @@ void TextEditor::handleMouseInput() {
     auto shift = ImGui::GetIO().KeyShift;
 
     if (ImGui::GetMouseClickedCount(ImGuiMouseButton_Left) > 0) {
-        if (m_splitScreen && m_textBox != m_activeTextBox && m_textBox->isInsideTextBox(position)) {
-            m_activeTextBox = m_textBox;
-        } else if (m_splitScreen && m_secondTextBox != m_activeTextBox && m_secondTextBox->isInsideTextBox(position)) {
-            m_activeTextBox = m_secondTextBox;
+        if (m_splitScreen && m_inactiveTextBox->isInsideTextBox(position)) {
+            std::swap(m_activeTextBox, m_inactiveTextBox);
         } else if (m_activeTextBox->isInsideHorizontalScrollbar(position)) {
             m_activeTextBox->horizontalBarClick(position);
         } else if (m_activeTextBox->isInsideVerticalScrollbar(position)) {
@@ -316,6 +316,8 @@ void TextEditor::newFile() {
         return;
 
     m_activeTextBox->newFile();
+    if (m_splitScreen)
+        m_inactiveTextBox->setFile(m_activeTextBox->getFile());
 }
 
 void TextEditor::open() {
@@ -325,15 +327,19 @@ void TextEditor::open() {
 
     auto path = openFileDialog();
 
-    if (!path.empty())
+    if (!path.empty()) {
         m_activeTextBox->open(path);
+        m_inactiveTextBox->open(path);
+    }
 }
 
 void TextEditor::save() {
     if (m_activeTextBox->getFile() == nullptr)
         saveAs();
-    else
+    else {
         m_activeTextBox->save();
+        m_inactiveTextBox->save();
+    }
 }
 
 void TextEditor::saveAs() {
@@ -343,6 +349,7 @@ void TextEditor::saveAs() {
         if (path.find_last_of('.') == std::string::npos)
             path += ".txt";
         m_activeTextBox->saveAs(path);
+        m_inactiveTextBox->saveAs(path);
     }
 }
 
@@ -482,6 +489,9 @@ std::string TextEditor::wStringToString(const std::wstring& wstring) {
 
     return {result};
 }
+
+
+
 
 
 

@@ -4,7 +4,7 @@
 
 #include "Theme.h"
 
-Theme::Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImColor stringColor, ImColor numberColor,
+Theme::Theme(ThemeName name, ImColor backgroundColor, ImColor textColor, ImColor stringColor, ImColor numberColor,
              ImColor keywordColor, ImColor preprocessorColor, ImColor commentColor, ImColor cursorColor, ImColor selectColor,
              ImColor writeSelectColor, ImColor scrollbarPrimaryColor, ImColor scrollbarSecondaryColor) : m_name(name) {
 
@@ -24,7 +24,7 @@ Theme::Theme(std::string name, ImColor backgroundColor, ImColor textColor, ImCol
 
 Theme::~Theme() {}
 
-const std::string &Theme::getName() const { return m_name; }
+const ThemeName& Theme::getName() const { return m_name; }
 
 const ImColor &Theme::getColor(const ThemeColor &color) { return m_colors[color]; }
 

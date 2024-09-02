@@ -25,9 +25,7 @@
 
 class TextBox {
 public:
-    TextBox(float width, float height, const std::string& fontName,
-            const ThemeName theme, PieceTableInstance* instance = nullptr);
-    TextBox(const TextBox& textBox);
+    TextBox(float width, float height, const std::string& fontName, PieceTableInstance* instance = nullptr);
     ~TextBox();
 
     void draw();
@@ -101,7 +99,7 @@ public:
     void setHeight(float height);
     void setTopLeftMargin(ImVec2 topLeftMargin);
     void setBottomRightMargin(ImVec2 bottomRightMargin);
-    void setTheme(Theme* theme);
+    void setFile(File* file);
 private:
     bool insertCharToPieceTable(char c);
     bool deleteSelection();
@@ -145,7 +143,6 @@ private:
     Selection* m_writeSelection;
     Scroll* m_scroll;
     Font* m_font;
-    Theme* m_theme;
     bool m_dirty;
     float m_width;
     float m_height;

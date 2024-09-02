@@ -5,7 +5,8 @@
 #include "TextBox.h"
 #include <utility>
 
-TextBox::TextBox(float width, float height, const std::string& fontName, const ThemeName theme, PieceTableInstance* instance) : m_dirty(false), m_file(nullptr) {
+TextBox::TextBox(float width, float height, const std::string& fontName, PieceTableInstance* instance)
+    : m_dirty(false), m_file(nullptr) {
 
     if (instance == nullptr)
         m_pieceTableInstance = new PieceTableInstance();
@@ -18,7 +19,6 @@ TextBox::TextBox(float width, float height, const std::string& fontName, const T
     m_writeSelection = new Selection(m_lineBuffer);
     m_font = new Font(fontName);
     m_scroll = new Scroll(m_lineBuffer, m_cursor, m_font);
-    m_theme = ThemeManager::getTheme(theme);
 
     m_width = width - m_bottomRightMargin.x - m_topLeftMargin.x;
     m_height = height - m_bottomRightMargin.y - m_topLeftMargin.y;
@@ -91,7 +91,7 @@ void TextBox::draw() {
 
     // If we haven't filled the entire text box we draw the rest of the background
     if (yOffset < m_height) {
-      ImGui::GetWindowDrawList()->AddRectFilled(currentPosition, getBottomRight(), m_theme->getColor(ThemeColor::BackgroundColor));
+      ImGui::GetWindowDrawList()->AddRectFilled(currentPosition, getBottomRight(), getTheme()->getColor(ThemeColor::BackgroundColor));
     }
 
     drawCursor();
@@ -641,7 +641,7 @@ float TextBox::getScrollbarSize() const { return m_scrollbarSize; }
 
 Cursor *TextBox::getCursor() const { return m_cursor; }
 
-Theme* TextBox::getTheme() const { return m_theme; }
+Theme* TextBox::getTheme() const { return ThemeManager::getTheme(); }
 
 File* TextBox::getFile() const { return m_file; }
 
@@ -663,11 +663,11 @@ void TextBox::setWidth(float width) { m_width = width; }
 
 void TextBox::setHeight(float height) { m_height = height; }
 
-void TextBox::setTheme(Theme* theme) { m_theme = theme; }
-
 void TextBox::setTopLeftMargin(ImVec2 topLeftMargin) { m_topLeftMargin = topLeftMargin; }
 
 void TextBox::setBottomRightMargin(ImVec2 bottomRightMargin) { m_bottomRightMargin = bottomRightMargin; }
+
+void TextBox::setFile(File *file) { m_file = file; }
 
 // Inserts a char into the piece table at the current cursor position
 // and returns whether the add buffer was initialized after being flushed
@@ -811,14 +811,14 @@ inline void TextBox::drawRectangle(ImVec2 currentPosition, float& lineHeight) {
     // Add a clip rectangle
     ImGui::GetWindowDrawList()->PushClipRect(screenPosition, ImVec2(screenPosition.x + m_width, screenPosition.y + m_height));
     // Draw the background rectangle
-    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getColor(ThemeColor::BackgroundColor));
+    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, getTheme()->getColor(ThemeColor::BackgroundColor));
     // Deactivate clip rectangle
     ImGui::GetWindowDrawList()->PopClipRect();
 }
 
 void TextBox::drawText(ImVec2 textPosition, const std::string &line, size_t index) {
     if (m_lineBuffer->getLanguageMode() == LanguageMode::PlainText) {
-        ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getColor(ThemeColor::TextColor), line.c_str());
+        ImGui::GetWindowDrawList()->AddText(textPosition, getTheme()->getColor(ThemeColor::TextColor), line.c_str());
         return;
     }
 
@@ -834,7 +834,7 @@ void TextBox::drawText(ImVec2 textPosition, const std::string &line, size_t inde
         }
 
         auto text = line.substr(start, length);
-        ImGui::GetWindowDrawList()->AddText(textPosition, m_theme->getColor(color), text.c_str());
+        ImGui::GetWindowDrawList()->AddText(textPosition, getTheme()->getColor(color), text.c_str());
         textPosition.x += m_cursor->getXAdvance(text);
         start += length;
     }
@@ -859,7 +859,7 @@ void TextBox::drawSelection(Selection* selection, ImVec2 textPosition, std::stri
 
         ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(textPosition.x + leftStringAdvance, textPosition.y),
                                                   ImVec2(textPosition.x + leftStringAdvance + middleStringAdvance, textPosition.y + ImGui::GetFontSize()),
-                                                  m_theme->getColor(color));
+                                                  getTheme()->getColor(color));
     }
 }
 
@@ -878,7 +878,7 @@ void TextBox::drawCursor() {
     auto bottomRight = ImVec2(topLeft.x + m_cursor->getWidth(), topLeft.y + ImGui::GetFontSize());
 
     if (isInsideTextBox(topLeft))
-        ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getColor(ThemeColor::CursorColor));
+        ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, getTheme()->getColor(ThemeColor::CursorColor));
 
     m_cursor->updateShouldRender();
 }
@@ -891,7 +891,7 @@ void TextBox::drawScrollBars() {
     auto screenPosition = getTopLeft();
     auto topLeft = ImVec2(screenPosition.x + m_width, screenPosition.y + m_height);
     auto bottomRight = ImVec2(topLeft.x + m_scrollbarSize, topLeft.y + m_scrollbarSize);
-    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getColor(ThemeColor::ScrollbarPrimaryColor));
+    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, getTheme()->getColor(ThemeColor::ScrollbarPrimaryColor));
 }
 
 // Draws the entire horizontal scrollbar
@@ -903,7 +903,7 @@ void TextBox::drawHorizontalScrollbar() {
 
     if (maxXScroll != 0.0f) {
         updateHScrollSelectRect();
-        drawRect(m_scroll->getHScrollSelectRect(), m_theme->getColor(ThemeColor::ScrollbarPrimaryColor));
+        drawRect(m_scroll->getHScrollSelectRect(), getTheme()->getColor(ThemeColor::ScrollbarPrimaryColor));
     }
 }
 
@@ -916,7 +916,7 @@ void TextBox::drawVerticalScrollbar() {
 
     if (maxYScroll != 0.0f) {
         updateVScrollSelectRect();
-        drawRect(m_scroll->getVScrollSelectRect(), m_theme->getColor(ThemeColor::ScrollbarPrimaryColor));
+        drawRect(m_scroll->getVScrollSelectRect(), getTheme()->getColor(ThemeColor::ScrollbarPrimaryColor));
     }
 }
 
@@ -926,8 +926,8 @@ void TextBox::drawHScrollbarRect() {
     auto topLeft = rect.getTopLeft();
     auto bottomRight = rect.getBottomRight();
 
-    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x - m_scrollbarSize, topLeft.y), ImVec2(bottomRight.x + m_scrollbarSize, bottomRight.y), m_theme->getColor(ThemeColor::ScrollbarPrimaryColor));
-    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y), ImVec2(bottomRight.x , bottomRight.y), m_theme->getColor(ThemeColor::ScrollbarSecondaryColor));
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x - m_scrollbarSize, topLeft.y), ImVec2(bottomRight.x + m_scrollbarSize, bottomRight.y), getTheme()->getColor(ThemeColor::ScrollbarPrimaryColor));
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y), ImVec2(bottomRight.x , bottomRight.y), getTheme()->getColor(ThemeColor::ScrollbarSecondaryColor));
 }
 
 // Draw the vertical scrollbar rectangle
@@ -936,8 +936,8 @@ void TextBox::drawVScrollbarRect() {
     auto topLeft = rect.getTopLeft();
     auto bottomRight = rect.getBottomRight();
 
-    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y - m_scrollbarSize), ImVec2(bottomRight.x, bottomRight.y + m_scrollbarSize), m_theme->getColor(ThemeColor::ScrollbarPrimaryColor));
-    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, m_theme->getColor(ThemeColor::ScrollbarSecondaryColor));
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(topLeft.x, topLeft.y - m_scrollbarSize), ImVec2(bottomRight.x, bottomRight.y + m_scrollbarSize), getTheme()->getColor(ThemeColor::ScrollbarPrimaryColor));
+    ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, getTheme()->getColor(ThemeColor::ScrollbarSecondaryColor));
 }
 
 void TextBox::drawRect(const MyRectangle &rect, const ImColor& color) {
