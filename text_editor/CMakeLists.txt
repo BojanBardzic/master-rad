@@ -11,8 +11,12 @@ set(LEXER_PATH "../submodules/lexertk")
 include_directories(${IMGUI_PATH})
 include_directories(${LEXER_PATH})
 
+file(MAKE_DIRECTORY "Snippets")
+
 add_executable(text_editor
         main.cpp
+        CodeSnippets/SnippetManager.cpp
+        CodeSnippets/SnippetManager.h
         GUI/TextBox.cpp
         GUI/TextBox.h
         GUI/Cursor.cpp

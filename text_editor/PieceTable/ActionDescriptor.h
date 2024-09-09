@@ -5,8 +5,9 @@
 #ifndef TEXT_EDITOR_ACTIONDESCRIPTOR_H
 #define TEXT_EDITOR_ACTIONDESCRIPTOR_H
 
-#include <vector>
 #include "PieceDescriptor.h"
+
+#include <vector>
 
 enum ActionType {
     Insert,

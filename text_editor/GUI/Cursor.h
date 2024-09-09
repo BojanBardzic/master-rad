@@ -6,15 +6,14 @@
 #define TEXT_EDITOR_CURSOR_H
 
 #include "imgui.h"
+#include "LineBuffer.h"
+#include "TextPosition.h"
 
 #include <chrono>
 #include <iostream>
 #include <numeric>
 #include <string>
 #include <stack>
-
-#include "LineBuffer.h"
-#include "TextPosition.h"
 
 class Cursor {
 public:

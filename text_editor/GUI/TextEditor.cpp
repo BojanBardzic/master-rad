@@ -4,12 +4,13 @@
 
 #include "TextEditor.h"
 
-TextEditor::TextEditor() : m_menuActive(false), m_splitScreen(false), m_size({0.0f, 0.0f}) {
-    // Setup font and theme
-    FontManager::init();
-    m_menuFont = new Font(m_menuFontName, m_menuFontSize);
-
+TextEditor::TextEditor() : m_size({0.0f, 0.0f}) {
+    // Setup theme and fonts
     ThemeManager::init();
+    FontManager::init();
+    SnippetManager::init();
+    m_menuFont = new Font(m_menuFontName, m_menuFontSize);
+    m_textFont = new Font(m_textFontName, m_textFontSize);
 
     m_textBox = new TextBox(m_defaultWidth, m_defaultHeight, m_textFontName);
     m_textBox->setWidth(500.0f);
@@ -19,12 +20,15 @@ TextEditor::TextEditor() : m_menuActive(false), m_splitScreen(false), m_size({0.
     m_activeTextBox = m_textBox;
     m_inactiveTextBox = m_secondTextBox;
 
-    std::cerr << "Exiting constructor" << std::endl;
+    m_saveSnippetBufferSize = 100;
+    m_saveSnippetBuffer = new char[m_saveSnippetBufferSize];
+    m_saveSnippetBuffer[0] = '\0';
 }
 
 TextEditor::~TextEditor() {
     delete m_textBox;
     delete m_secondTextBox;
+    delete[] m_saveSnippetBuffer;
 }
 
 void TextEditor::draw() {
@@ -32,31 +36,38 @@ void TextEditor::draw() {
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
 
-    ImGui::Begin("TextEditor", 0, m_flags);
-    // Draw the top menu
-    drawMenu();
+    if (ImGui::Begin("TextEditor", 0, m_flags)) {
+        // Draw the top menu
+        drawMenu();
 
-    // Handle inputs;
-    handleKeyboardInput();
-    if (!m_menuActive)
-        handleMouseInput();
+        // Handle inputs;
+        handleKeyboardInput();
+        if (!m_menuActive)
+            handleMouseInput();
 
-   if (m_splitScreen)
-       m_inactiveTextBox->getLines();
+        if (m_splitScreen)
+            m_inactiveTextBox->getLines();
 
-    // Draw the text box
-    m_textBox->draw();
-    if (m_splitScreen)
-        m_secondTextBox->draw();
+        // Draw the text box
+        m_textBox->draw();
+        if (m_splitScreen)
+            m_secondTextBox->draw();
 
-    if (isWindowSizeChanged())
-        updateTextBoxMargins();
+        if (m_snippetDialogActive)
+            snippetsDialog();
+
+        if (m_saveSnippetDialogActive)
+            saveSnippetDialog();
+
+        if (isWindowSizeChanged())
+            updateTextBoxMargins();
 
 
-    // Draw the status bar
-    drawStatusBar();
+        // Draw the status bar
+        drawStatusBar();
 
-    ImGui::End();
+        ImGui::End();
+    }
 }
 
 void TextEditor::drawMenu() {
@@ -140,6 +151,14 @@ void TextEditor::drawMenu() {
                 toggleSplitScreen();
             }
 
+            if (ImGui::MenuItem("Snippets", "", m_snippetDialogActive)) {
+                m_snippetDialogActive = true;
+            }
+
+            if (ImGui::MenuItem("Add Snippet", "", m_saveSnippetDialogActive, m_textBox->isSelectionActive())) {
+                m_saveSnippetDialogActive = true;
+            }
+
             ImGui::EndMenu();
         }
 
@@ -172,6 +191,13 @@ void TextEditor::toggleSplitScreen() {
         m_activeTextBox = m_textBox;
 
     updateTextBoxMargins();
+}
+
+bool TextEditor::saveSnippet(char* name) {
+    std::string nameStr = std::string(name);
+    auto success = m_textBox->saveSnippet(nameStr);
+
+    return success;
 }
 
 void TextEditor::updateTextBoxMargins() {
@@ -353,6 +379,106 @@ void TextEditor::saveAs() {
     }
 }
 
+void TextEditor::snippetsDialog() {
+    ImGui::PushFont(m_menuFont->getFont());
+
+    pushDialogStyle();
+
+    if (ImGui::Begin("Snippets", &m_snippetDialogActive, ImGuiWindowFlags_NoCollapse)) {
+        if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
+            m_snippetDialogActive = false;
+
+        auto [namesList, namesSize] = SnippetManager::getSnippetNames();
+
+        static int itemCurrent = 0;
+        ImGui::Combo("##Combo", &itemCurrent, namesList, namesSize);
+        ImGui::SameLine();
+        if (ImGui::Button("Delete")) {
+            ImGui::OpenPopup("Delete");
+            m_checkDialogActive = true;
+        }
+
+        ImGui::PushFont(m_textFont->getFont());
+
+        checkSnippetDeleteDialog(namesList, itemCurrent);
+        if (namesSize != 0) {
+            auto [text, textSize] = SnippetManager::getTextForName(namesList[itemCurrent]);
+            ImGui::InputTextMultiline("##SnippetText", text, textSize, {ImGui::GetWindowWidth() - 20.0f, ImGui::GetWindowHeight() - 70.0f});
+
+            delete[] text;
+        }
+
+        ImGui::PopFont();
+
+        for (int i=0; i<namesSize; ++i) {
+            delete[] namesList[i];
+        }
+        delete[] namesList;
+
+        ImGui::End();
+    }
+
+    popDialogStyle();
+    ImGui::PopFont();
+}
+
+void TextEditor::saveSnippetDialog() {
+    ImGui::PushFont(m_menuFont->getFont());
+    pushDialogStyle();
+
+    if (ImGui::Begin("Save snippet", &m_saveSnippetDialogActive, ImGuiWindowFlags_NoCollapse)) {
+        ImGui::SetWindowSize({500.f, 200.f});
+        if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows))
+            m_saveSnippetDialogActive = false;
+
+        if (ImGui::InputText("Name", m_saveSnippetBuffer, m_saveSnippetBufferSize));
+
+        if (ImGui::Button("Save")) {
+            if (saveSnippet(m_saveSnippetBuffer)) {
+                m_saveSnippetDialogActive = false;
+            } else {
+                ImGui::OpenPopup("NameIncorrect");
+                m_nameIncorrectMessageActive = true;
+            }
+        }
+
+        if (ImGui::BeginPopupModal("NameIncorrect", &m_nameIncorrectMessageActive, ImGuiWindowFlags_NoCollapse)) {
+            ImGui::SetWindowSize({500.0f, 200.0f});
+            ImGui::Text("Name already exists!");
+            ImGui::EndPopup();
+        }
+
+        ImGui::End();
+    }
+
+    popDialogStyle();
+    ImGui::PopFont();
+}
+
+void TextEditor::checkSnippetDeleteDialog(char** namesList, int& itemCurrent) {
+    ImGui::PushFont(m_menuFont->getFont());
+
+    if (ImGui::BeginPopupModal("Delete", &m_checkDialogActive, ImGuiWindowFlags_NoResize)) {
+        ImGui::SetWindowSize({500.0f, 200.0f});
+        ImGui::Text("Are you sure you want to delete the snippet?");
+        ImVec2 buttonSize = {60.0f, 30.0f};
+        float indentation = (ImGui::GetWindowWidth() / 2.0f) - buttonSize.x - 20.0f;
+        ImGui::Indent(indentation);
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2.0f + buttonSize.y);
+        if (ImGui::Button("Yes", buttonSize)) {
+            m_checkDialogActive = false;
+            SnippetManager::deleteSnippet(namesList[itemCurrent]);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("No", buttonSize)) {
+            m_checkDialogActive = false;
+        }
+        ImGui::EndPopup();
+    }
+
+    ImGui::PopFont();
+}
+
 std::string TextEditor::openFileDialog() {
     HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED |
                                       COINIT_DISABLE_OLE1DDE);
@@ -481,6 +607,19 @@ int TextEditor::handleFileNotSaved() {
     }
 }
 
+void TextEditor::pushDialogStyle() {
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, IM_COL32(25, 25, 25, 255));
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(75, 75, 75, 255));
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(75, 75, 75, 255));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(100, 100, 100, 255));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, IM_COL32(100, 100, 100, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(100, 100, 100, 255));
+}
+
+void TextEditor::popDialogStyle() {
+    ImGui::PopStyleColor(6);
+}
+
 std::string TextEditor::wStringToString(const std::wstring& wstring) {
     size_t len = wcstombs(nullptr, wstring.c_str(), 0) + 1;
 
@@ -489,6 +628,13 @@ std::string TextEditor::wStringToString(const std::wstring& wstring) {
 
     return {result};
 }
+
+
+
+
+
+
+
 
 
 

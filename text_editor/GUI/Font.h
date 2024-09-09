@@ -5,9 +5,11 @@
 #ifndef TEXT_EDITOR_FONT_H
 #define TEXT_EDITOR_FONT_H
 
-#include <string>
-#include "imgui.h"
 #include "FontManager.h"
+#include "imgui.h"
+
+#include <string>
+
 
 class Font {
 public:

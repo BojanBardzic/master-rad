@@ -5,11 +5,12 @@
 #ifndef TEXT_EDITOR_LINEBUFFER_H
 #define TEXT_EDITOR_LINEBUFFER_H
 
-#include <numeric>
-#include <sstream>
 #include "../PieceTable/PieceTableInstance.h"
 #include "TextCoordinates.h"
 #include "../SyntaxHiglighting/TextHighlighter.h"
+
+#include <numeric>
+#include <sstream>
 
 class LineBuffer {
 public:

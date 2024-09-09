@@ -5,16 +5,17 @@
 #ifndef TEXT_EDITOR_PIECETABLE_H
 #define TEXT_EDITOR_PIECETABLE_H
 
-#include <numeric>
-#include <iostream>
-#include <string>
-#include <list>
-#include <fstream>
-#include <stack>
+#include "ActionDescriptor.h"
 #include "DeleteBuffer.h"
 #include "InsertBuffer.h"
 #include "PieceDescriptor.h"
-#include "ActionDescriptor.h"
+
+#include <fstream>
+#include <iostream>
+#include <list>
+#include <numeric>
+#include <stack>
+#include <string>
 
 class PieceTable {
 public:

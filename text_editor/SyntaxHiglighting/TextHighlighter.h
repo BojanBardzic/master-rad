@@ -5,14 +5,15 @@
 #ifndef TEXT_EDITOR_TEXTHIGHLIGHTER_H
 #define TEXT_EDITOR_TEXTHIGHLIGHTER_H
 
+#include "LanguageManager.h"
+#include "lexertk.hpp"
+#include "../GUI/Theme.h"
+
 #include <iostream>
 #include <regex>
 #include <set>
 #include <sstream>
 #include <unordered_map>
-#include "../GUI/Theme.h"
-#include "lexertk.hpp"
-#include "LanguageManager.h"
 
 enum ThemeColor;
 

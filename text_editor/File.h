@@ -5,13 +5,17 @@
 #ifndef TEXT_EDITOR_FILE_H
 #define TEXT_EDITOR_FILE_H
 
-#include <string>
-#include <unordered_map>
 #include "SyntaxHiglighting/LanguageMode.h"
+
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <direct.h>
+#include <unordered_map>
 
 class File {
 public:
-    File(std::string filePath);
+    explicit File(std::string filePath);
     ~File();
 
     const std::string& getPath() const;
@@ -19,6 +23,10 @@ public:
     const std::string& getExtension() const;
 
     static LanguageMode getModeForExtension(const std::string& extension);
+    static bool readFromFile(std::string& buffer, const std::string& filePath);
+    static bool writeToFile(std::string& buffer, const std::string& filePath);
+    static std::string getWorkingDirectory();
+    static std::string getProjectDirectory();
 private:
     std::string m_path;
     std::string m_name;

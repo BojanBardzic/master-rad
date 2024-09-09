@@ -4,7 +4,8 @@
 
 #include "FontManager.h"
 
-std::unordered_map<std::string, std::string> FontManager::m_fontPaths = {};
+const std::string FontManager::m_fontDirectoryPath = File::getProjectDirectory() + "GUI\\Fonts\\";
+std::vector<std::string> FontManager::m_fontNames = {};
 std::unordered_map<std::string, std::unordered_map<float, ImFont*>> FontManager::m_fonts = {};
 
 ImFont* FontManager::getFont(std::string &name, float size) {
@@ -12,12 +13,14 @@ ImFont* FontManager::getFont(std::string &name, float size) {
 }
 
 void FontManager::init() {
-    FontManager::m_fontPaths.insert({"Consolas", "C:\\Users\\bbard\\OneDrive\\Desktop\\MasterRad\\master-rad\\text_editor\\GUI\\Fonts\\Consolas.ttf"});
-    FontManager::m_fontPaths.insert({"Segoe UI", "C:\\Users\\bbard\\OneDrive\\Desktop\\MasterRad\\master-rad\\text_editor\\GUI\\Fonts\\Segoe UI.ttf"});
+    for (const auto& entry : std::filesystem::directory_iterator(m_fontDirectoryPath)) {
+        if (entry.is_regular_file() && entry.path().extension().string() == ".ttf") {
+            m_fontNames.push_back(entry.path().stem().string());
+        }
+    }
 
-    for (auto entry : m_fontPaths) {
-        auto fontName = entry.first;
-        auto fontPath = entry.second;
+    for (auto fontName : m_fontNames) {
+        std::string fontPath =  m_fontDirectoryPath + fontName + ".ttf";
 
         float size = m_minSize;
         while (size <= m_maxSize) {

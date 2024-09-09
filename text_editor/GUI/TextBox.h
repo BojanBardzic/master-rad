@@ -18,6 +18,7 @@
 #include "../SyntaxHiglighting/TextHighlighter.h"
 #include "Theme.h"
 #include "ThemeManager.h"
+#include "../CodeSnippets/SnippetManager.h"
 
 #include <string>
 #include <iostream>
@@ -50,6 +51,7 @@ public:
     bool open(std::string& filePath);
     bool save();
     bool saveAs(std::string& filePath);
+    bool saveSnippet(std::string& name);
 
     void moveCursorRight(bool shift);
     void moveCursorLeft(bool shift);
@@ -125,7 +127,6 @@ private:
     void updateVScrollSelectRect();
     void drawRect(const MyRectangle& rect, const ImColor& color);
 
-    static bool readFromFile(std::string& buffer, const std::string& filePath);
     bool saveToFile();
 
     void updateUndoRedo();

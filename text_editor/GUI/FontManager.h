@@ -6,8 +6,11 @@
 #define TEXT_EDITOR_FONTMANAGER_H
 
 #include "imgui.h"
-#include <string>
+#include "../File.h"
+
+#include <filesystem>
 #include <iostream>
+#include <string>
 #include <unordered_map>
 
 class FontManager {
@@ -20,7 +23,8 @@ public:
     constexpr static float m_defaultSize = 15.0f;
     constexpr static float m_offset = 2.0f;
 private:
-    static std::unordered_map<std::string, std::string> m_fontPaths;
+    static const std::string m_fontDirectoryPath;
+    static std::vector<std::string> m_fontNames;
     static std::unordered_map<std::string, std::unordered_map<float, ImFont*>> m_fonts;
 };
 

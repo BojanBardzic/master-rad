@@ -8,6 +8,7 @@
 #include "imgui.h"
 #include "../SyntaxHiglighting/TextHighlighter.h"
 #include "ThemeName.h"
+
 #include <string>
 #include <unordered_map>
 

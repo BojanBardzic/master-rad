@@ -24,7 +24,7 @@ TextBox::TextBox(float width, float height, const std::string& fontName, PieceTa
     m_height = height - m_bottomRightMargin.y - m_topLeftMargin.y;
 
     // Fixme: Just a test input, will be removed later.
-    m_pieceTableInstance->getInstance().insert("Hello World! World world world world world world world world world world world world\n\n\nHello There!\nSomething", 0);
+    //m_pieceTableInstance->getInstance().insert("Hello World! World world world world world world world world world world world world\n\n\nHello There!\nSomething", 0);
     m_lineBuffer->getLines();
 }
 
@@ -348,7 +348,7 @@ void TextBox::newFile() {
 bool TextBox::open(std::string& filePath) {
     std::string buffer;
     // Try to read from the file path
-    auto success = readFromFile(buffer, filePath);
+    auto success = File::readFromFile(buffer, filePath);
     if (!success)
         return false;
 
@@ -383,6 +383,11 @@ bool TextBox::saveAs(std::string &filePath) {
     delete oldFile;
 
     return save();
+}
+
+bool TextBox::saveSnippet(std::string &name) {
+    auto selectionText = m_selection->getSelectionText();
+    return SnippetManager::addSnippet(name, selectionText);
 }
 
 void TextBox::moveCursorRight(bool shift) {
@@ -732,7 +737,7 @@ TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosit
 
     ImGui::PopFont();
 
-    return {row+1, column};
+    return {std::min(row+1, std::max(m_lineBuffer->getLinesSize(), (size_t)1)), column};
 }
 
 // Adds a tab character in front of every selected row
@@ -1002,50 +1007,13 @@ std::string TextBox::getStatusBarText() {
     return stream.str();
 }
 
-// Reads from the current file and writes the contents into buffer
-bool TextBox::readFromFile(std::string& buffer, const std::string& filePath) {
-    std::ifstream input(filePath);
-
-    if (!input.is_open())
-        return false;
-
-    try {
-        std::getline(input, buffer, '\0');
-    } catch (std::exception& e) {
-        std::cerr << e.what() << std::endl;
-        return false;
-    }
-
-    input.close();
-    return true;
-}
-
 // Saves the text box contents to the current file
 bool TextBox::saveToFile() {
-    std::string backupBuffer;
-    readFromFile(backupBuffer, m_file->getPath());
+    std::stringstream strStream;
+    strStream << m_pieceTableInstance->getInstance();
+    std::string buffer = strStream.str();
 
-    std::ofstream output(m_file->getPath());
-    if (!output.is_open())
-        return false;
-
-    try {
-        output << m_pieceTableInstance->getInstance();
-        output << '\0';
-    } catch (std::exception& e) {
-        std::cerr << e.what() << std::endl;
-        output.close();
-
-        std::ofstream backupOutput(m_file->getPath());
-        backupOutput << backupBuffer;
-        backupOutput << '\0';
-        backupOutput.close();
-
-        return false;
-    }
-
-    output.close();
-    return true;
+    return File::writeToFile(buffer, m_file->getPath());
 }
 
 // Clears the undo and redo stacks if we are in a past state
@@ -1109,6 +1077,8 @@ void TextBox::updateStateForSelectionChange() {
     if (m_writeSelection->isActive() && m_selection->isActive())
         m_selection->clipSelection(m_writeSelection->getStart(), m_writeSelection->getEnd());
 }
+
+
 
 
 

@@ -5,9 +5,10 @@
 #ifndef TEXT_EDITOR_THEMEMANAGER_H
 #define TEXT_EDITOR_THEMEMANAGER_H
 
-#include <unordered_map>
-#include <string>
 #include "Theme.h"
+
+#include <string>
+#include <unordered_map>
 
 class ThemeManager {
 public:

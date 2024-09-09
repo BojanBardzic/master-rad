@@ -5,9 +5,10 @@
 #ifndef TEXT_EDITOR_PIECEDESCRIPTOR_H
 #define TEXT_EDITOR_PIECEDESCRIPTOR_H
 
-#include <vector>
-#include <iostream>
 #include "SourceType.h"
+
+#include <iostream>
+#include <vector>
 
 class PieceDescriptor {
 public:

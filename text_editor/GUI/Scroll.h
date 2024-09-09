@@ -5,9 +5,9 @@
 #ifndef TEXT_EDITOR_SCROLL_H
 #define TEXT_EDITOR_SCROLL_H
 
-#include "LineBuffer.h"
-#include "Font.h"
 #include "Cursor.h"
+#include "Font.h"
+#include "LineBuffer.h"
 #include "MyRectangle.h"
 
 class Scroll {

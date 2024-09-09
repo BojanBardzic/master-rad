@@ -5,8 +5,8 @@
 #ifndef TEXT_EDITOR_TEXTPOSITION_H
 #define TEXT_EDITOR_TEXTPOSITION_H
 
-#include "TextCoordinates.h"
 #include "LineBuffer.h"
+#include "TextCoordinates.h"
 
 class TextPosition {
 public:

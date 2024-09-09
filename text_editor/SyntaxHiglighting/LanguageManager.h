@@ -7,6 +7,7 @@
 
 #include "Language.h"
 #include "LanguageMode.h"
+
 #include <unordered_map>
 
 class LanguageManager {
