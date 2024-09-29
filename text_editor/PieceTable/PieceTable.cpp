@@ -30,20 +30,20 @@ std::ostream& operator<<(std::ostream& out, const PieceTable& table) {
 
             shouldPrintInsertBuffer = false;
         } else if (shouldPrintDeleteBuffer && PieceTable::isInsidePiece(table.m_deleteBuffer->getStartIndex(), current_index, piece->getLength())) {
-            std::cerr << "Printing delete buffer" << std::endl;
-            std::cerr << "Piece" << *piece << std::endl;
-            std::cerr << "Current index: " << current_index << std::endl;
+            //std::cerr << "Printing delete buffer" << std::endl;
+            //std::cerr << "Piece" << *piece << std::endl;
+            //std::cerr << "Current index: " << current_index << std::endl;
             auto deleteBufferStart = table.m_deleteBuffer->getStartIndex();
             auto deleteBufferEnd = table.m_deleteBuffer->getEndIndex();
 
-            std::cerr << "start: " << deleteBufferStart << std::endl;
-            std::cerr << "end: " << deleteBufferEnd << std::endl;
+            //std::cerr << "start: " << deleteBufferStart << std::endl;
+            //std::cerr << "end: " << deleteBufferEnd << std::endl;
 
             if (deleteBufferStart == current_index && deleteBufferEnd == current_index + piece->getLength()) {
-                std::cerr << "Doing nothing" << std::endl;
+                //std::cerr << "Doing nothing" << std::endl;
                 // Do nothing
             } else if (deleteBufferStart >= current_index && deleteBufferEnd <= current_index + piece->getLength()) {
-                std::cerr << "Deleting in-between" << std::endl;
+                //std::cerr << "Deleting in-between" << std::endl;
 
                 auto leftStringLen = deleteBufferStart - current_index;
                 auto deleteLen = deleteBufferEnd - deleteBufferStart;
@@ -53,38 +53,38 @@ std::ostream& operator<<(std::ostream& out, const PieceTable& table) {
                 out << buffer->substr(piece->getStart(), leftStringLen);
                 out << buffer->substr(piece->getStart() + rightOffset, rightStringLen);
             } else {
-                std::cerr << "Deleting across multiple pieces" << std::endl;
+                //std::cerr << "Deleting across multiple pieces" << std::endl;
 
                 auto leftLen = table.m_deleteBuffer->getStartIndex() - current_index;
-                std::cerr << "left len: " << leftLen << std::endl;
+                //std::cerr << "left len: " << leftLen << std::endl;
 
                 out << buffer->substr(piece->getStart(), leftLen);
 
 
                 while (pieceIt != table.m_pieces.end() && !PieceTable::isInsidePieceInclusive(table.m_deleteBuffer->getEndIndex(), current_index, piece->getLength())) {
-                    std::cerr << "Iterating over piece" << std::endl;
+                    //std::cerr << "Iterating over piece" << std::endl;
                     current_index += piece->getLength();
                     pieceIt = std::next(pieceIt);
                     piece = pieceIt == table.m_pieces.end() ? nullptr : *pieceIt;
                 }
 
                 if (pieceIt == table.m_pieces.end()) {
-                    std::cerr << "Reached end, breaking out of loop" << std::endl;
+                    //std::cerr << "Reached end, breaking out of loop" << std::endl;
                     break;
                 }
 
                 piece = *pieceIt;
-                std::cerr << "Piece: " << *piece << std::endl;
+                //std::cerr << "Piece: " << *piece << std::endl;
 
                 auto rightOffset = table.m_deleteBuffer->getEndIndex() - current_index;
-                std::cerr << "right offset: " << rightOffset << std::endl;
+                //std::cerr << "right offset: " << rightOffset << std::endl;
 
                 out << buffer->substr(piece->getStart() + rightOffset, piece->getLength() - rightOffset);
             }
 
             shouldPrintDeleteBuffer = false;
         } else {
-            std::cerr << "Printing whole: " << buffer->substr(piece->getStart(), piece->getLength()) << std::endl;
+            //std::cerr << "Printing whole: " << buffer->substr(piece->getStart(), piece->getLength()) << std::endl;
             out << buffer->substr(piece->getStart(), piece->getLength());
         }
 
@@ -96,7 +96,7 @@ std::ostream& operator<<(std::ostream& out, const PieceTable& table) {
         out << table.m_insertBuffer->getContent();
     }
 
-    std::cerr << "EXITED PRINTING" << std::endl;
+    //std::cerr << "EXITED PRINTING" << std::endl;
 
     return out;
 }

@@ -56,6 +56,8 @@ void TextBox::draw() {
 
     auto lineHeight = ImGui::GetFontSize();
     auto linesSize = m_lineBuffer->getLinesSize();
+    auto blocks = m_lineBuffer->getBlocks();
+    auto currentBlockIndex = 0;
 
     for (size_t i=0; i<linesSize; ++i) {
         // Get the line
@@ -77,8 +79,8 @@ void TextBox::draw() {
         drawSelection(m_writeSelection, textPosition, line, i, ThemeColor::WriteSelectColor);
         drawSelection(m_selection, textPosition, line, i, ThemeColor::SelectColor);
 
-        // Draw the text
-        drawText(textPosition, line, i);
+        // Draw the line text
+        drawLineText(i, currentBlockIndex, blocks, textPosition, line);
 
         // Deactivate clip rectangle
         ImGui::GetWindowDrawList()->PopClipRect();
@@ -96,7 +98,7 @@ void TextBox::draw() {
 
     drawCursor();
     drawScrollBars();
-    //drawStatusBar();
+    drawCodeFoldingBar();
 
     ImGui::PopFont();
 }
@@ -113,7 +115,7 @@ void TextBox::enterChar(char c) {
     if (initialized)
         m_cursor->recordCursorPosition();
 
-    updateStateForTextChange(true, 1);
+    updateStateForTextChange(true, 1, m_cursor->getRow());
 
     m_cursor->moveRight();
     updateStateForCursorMovement();
@@ -133,7 +135,7 @@ void TextBox::enterText(std::string str) {
     size_t index = m_lineBuffer->textCoordinatesToBufferIndex(coords);
     m_pieceTableInstance->getInstance().insert(std::move(str), index);
 
-    updateStateForTextChange(true, size);
+    updateStateForTextChange(true, size, m_cursor->getRow());
 
     auto newCoords = m_lineBuffer->bufferIndexToTextCoordinates(index + size);
     m_cursor->setCoords(newCoords);
@@ -159,7 +161,7 @@ void TextBox::backspace() {
         if (initialized)
             m_cursor->recordCursorPosition();
 
-        updateStateForTextChange(false, 1);
+        updateStateForTextChange(false, 1, m_cursor->getRow());
 
         m_cursor->moveLeft();
 
@@ -211,7 +213,7 @@ void TextBox::tab(bool shift) {
     }
 
     if (changed)
-        updateStateForTextChange(!cursorMovedLeft, 1);
+        updateStateForTextChange(!cursorMovedLeft, 1, m_cursor->getRow());
     if (cursorMovedLeft)
         m_cursor->moveLeft();
     if (cursorMovedRight)
@@ -238,7 +240,7 @@ void TextBox::deleteChar() {
         if (initialized)
             m_cursor->recordCursorPosition();
 
-        updateStateForTextChange(false, 1);
+        updateStateForTextChange(false, 1, m_cursor->getRow());
     }
 }
 
@@ -262,7 +264,7 @@ void TextBox::deleteLine() {
 
     m_cursor->recordCursorPosition();
     m_pieceTableInstance->getInstance().deleteText(index, index+offset);
-    updateStateForTextChange(false, line.size());
+    updateStateForTextChange(false, line.size(), m_cursor->getRow());
 
     m_cursor->setCoords({std::min(row, m_lineBuffer->getLinesSize()), 1});
     updateStateForCursorMovement();
@@ -323,7 +325,7 @@ void TextBox::undo() {
     m_pieceTableInstance->getInstance().flushDeleteBuffer();
     m_pieceTableInstance->getInstance().undo();
     m_cursor->cursorUndo();
-    updateStateForTextChange(true, 0);
+    updateStateForTextChange(true, 0, m_cursor->getRow());
     updateStateForCursorMovement();
 }
 
@@ -331,7 +333,7 @@ void TextBox::redo() {
     m_writeSelection->setActive(false);
     m_pieceTableInstance->getInstance().redo();
     m_cursor->cursorRedo();
-    updateStateForTextChange(true, 0);
+    updateStateForTextChange(true, 0, m_cursor->getRow());
     updateStateForCursorMovement();
 }
 
@@ -596,6 +598,18 @@ void TextBox::verticalBarClick(ImVec2 &mousePosition) {
     }
 }
 
+void TextBox::foldingBarClick(ImVec2 &mousePosition) {
+    auto blocks = m_lineBuffer->getBlocks();
+
+    for (CodeBlock* block : blocks) {
+        if (MyRectangle::isInsideRectangle(getCodeBlockButtonRect(block), mousePosition)) {
+            block->setFolded(!block->isFolded());
+            m_lineBuffer->updateHiddenForBlock(block);
+            return;
+        }
+    }
+}
+
 void TextBox::increaseFontSize() {
     m_font->increaseSize();
     m_scroll->updateMaxScroll(m_width, m_height);
@@ -612,12 +626,16 @@ bool TextBox::isInsideTextBox(const ImVec2& point) {
     return MyRectangle::isInsideRectangle({getTopLeft(), getBottomRight()}, point);
 }
 
-bool TextBox::isInsideHorizontalScrollbar(const ImVec2 &point) {
+bool TextBox::isInsideHorizontalScrollbar(const ImVec2& point) {
     return MyRectangle::isInsideRectangle(m_scroll->getHScrollbarRect(), point);
 }
 
-bool TextBox::isInsideVerticalScrollbar(const ImVec2 &point) {
+bool TextBox::isInsideVerticalScrollbar(const ImVec2& point) {
     return MyRectangle::isInsideRectangle(m_scroll->getVScrollbarRect(), point);
+}
+
+bool TextBox::isInsideCodeFoldingBar(const ImVec2& point) {
+    return MyRectangle::isInsideRectangle(getCodeFoldingRect(), point);
 }
 
 float TextBox::getWidth() const { return m_width; }
@@ -641,6 +659,28 @@ ImVec2 TextBox::getBottomRightMargin() const { return m_bottomRightMargin; }
 const MyRectangle &TextBox::getHScrollbarRect() const { return m_scroll->getHScrollbarRect(); }
 
 const MyRectangle &TextBox::getVScrollbarRect() const { return m_scroll->getVScrollbarRect(); }
+
+const MyRectangle TextBox::getCodeFoldingRect() const {
+    auto topLeft = getTopLeft();
+    ImVec2 barTopLeft = {topLeft.x - m_codeFoldingBarWidth, topLeft.y};
+    ImVec2 barBottomRight = {topLeft.x, topLeft.y + m_height};
+
+    return {barTopLeft, barBottomRight};
+}
+
+const MyRectangle TextBox::getCodeBlockButtonRect(const CodeBlock* codeBlock) const {
+    ImGui::PushFont(m_font->getFont());
+
+    auto topLeft = getTopLeft();
+    auto verticalOffset = m_lineBuffer->getRowsShowing(codeBlock->getStart().m_row) * ImGui::GetFontSize() - m_scroll->getYScroll();
+
+    ImVec2 buttonTopLeft = {topLeft.x - m_codeFoldingBarWidth, topLeft.y + verticalOffset};
+    ImVec2 buttonBottomRight = {topLeft.x, buttonTopLeft.y + ImGui::GetFontSize()};
+
+    ImGui::PopFont();
+
+    return  {buttonTopLeft, buttonBottomRight};
+}
 
 float TextBox::getScrollbarSize() const { return m_scrollbarSize; }
 
@@ -698,7 +738,7 @@ bool TextBox::deleteSelection() {
     auto endIndex = m_lineBuffer->textCoordinatesToBufferIndex(m_selection->getEnd());
     m_pieceTableInstance->getInstance().deleteText(startIndex, endIndex);
 
-    updateStateForTextChange(false, endIndex-startIndex);
+    updateStateForTextChange(false, endIndex-startIndex, m_selection->getStart().m_row);
 
     m_cursor->setCoords(m_selection->getStart());
     updateStateForCursorMovement();
@@ -717,9 +757,22 @@ TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosit
     ImGui::PushFont(m_font->getFont());
 
     float rows = (mousePosition.y - getTopLeft().y) / ImGui::GetFontSize();
-    int maxValue = m_lineBuffer->isEmpty() ? 1 : m_lineBuffer->getLinesSize() - 1;
+    int maxValue = m_lineBuffer->isEmpty() ? 0 : m_lineBuffer->getLinesSize() - 1;
     size_t row = std::min(maxValue, (int) rows);
-    auto line = m_lineBuffer->lineAt(row);
+
+    size_t actualRow = 0;
+    size_t counter = 0;
+    while (actualRow < m_lineBuffer->getLinesSize()) {
+        if (!m_lineBuffer->getHidden()[actualRow]) {
+            if (counter == row)
+                break;
+            else
+                counter++;
+        }
+        actualRow++;
+    }
+
+    auto line = m_lineBuffer->lineAt(actualRow);
 
     size_t column = 1;
 
@@ -737,7 +790,7 @@ TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosit
 
     ImGui::PopFont();
 
-    return {std::min(row+1, std::max(m_lineBuffer->getLinesSize(), (size_t)1)), column};
+    return {std::min(actualRow+1, std::max(m_lineBuffer->getLinesSize(), (size_t)1)), column};
 }
 
 // Adds a tab character in front of every selected row
@@ -821,6 +874,34 @@ inline void TextBox::drawRectangle(ImVec2 currentPosition, float& lineHeight) {
     ImGui::GetWindowDrawList()->PopClipRect();
 }
 
+// Determines if the line should be drawn or not based on code folding
+void TextBox::drawLineText(size_t& lineIndex, int& currentBlockIndex, std::vector<CodeBlock*>& blocks, ImVec2& textPosition, std::string& line) {
+    // If we are on the line of the start of the current block
+    if (currentBlockIndex < blocks.size() && lineIndex == blocks[currentBlockIndex]->getStart().m_row) {
+
+        if (blocks[currentBlockIndex]->isFolded()) {
+            // Draw the text up to the '{' character
+            drawText(textPosition, line.substr(0, blocks[currentBlockIndex]->getStart().m_col), lineIndex);
+            // Jump the line index to the end, so that we skip all the hidden lines
+            lineIndex = blocks[currentBlockIndex]->getEnd().m_row;
+
+            // Keep incrementing the block index until there are no more blocks that are behind the current line
+            do {
+                currentBlockIndex++;
+            } while (currentBlockIndex < blocks.size() && blocks[currentBlockIndex]->getStart().m_row <= lineIndex);
+        } else {
+            // Instead just draw the text normally and go to the next block
+            drawText(textPosition, line, lineIndex);
+
+            do {
+                currentBlockIndex++;
+            } while (currentBlockIndex < blocks.size() && blocks[currentBlockIndex]->getStart().m_row == lineIndex);
+        }
+    } else {
+        drawText(textPosition, line, lineIndex);
+    }
+}
+
 void TextBox::drawText(ImVec2 textPosition, const std::string &line, size_t index) {
     if (m_lineBuffer->getLanguageMode() == LanguageMode::PlainText) {
         ImGui::GetWindowDrawList()->AddText(textPosition, getTheme()->getColor(ThemeColor::TextColor), line.c_str());
@@ -874,6 +955,11 @@ void TextBox::drawCursor() {
         return;
     }
 
+    auto hidden = m_lineBuffer->getHidden();
+    if (!hidden.empty() && hidden[m_cursor->getRow()-1]) {
+        return;
+    }
+
     m_cursor->calculateWidth();
 
     auto topLeft = m_cursor->getCursorPosition(getTopLeft());
@@ -886,6 +972,36 @@ void TextBox::drawCursor() {
         ImGui::GetWindowDrawList()->AddRectFilled(topLeft, bottomRight, getTheme()->getColor(ThemeColor::CursorColor));
 
     m_cursor->updateShouldRender();
+}
+
+void TextBox::drawCodeFoldingBar() {
+    auto codeFoldingRect = getCodeFoldingRect();
+    drawRect(codeFoldingRect, getTheme()->getColor(ThemeColor::ScrollbarPrimaryColor));
+
+    ImGui::GetWindowDrawList()->PushClipRect(codeFoldingRect.getTopLeft(), codeFoldingRect.getBottomRight());
+
+    auto blocks = m_lineBuffer->getBlocks();
+    for (auto block : blocks) {
+        if (!m_lineBuffer->getHidden().at(block->getStart().m_row))
+            drawCodeFoldingButton(block);
+    }
+
+    ImGui::PopClipRect();
+}
+
+void TextBox::drawCodeFoldingButton(const CodeBlock* codeBlock) {
+    auto buttonRect = getCodeBlockButtonRect(codeBlock);
+    drawRect(buttonRect, getTheme()->getColor(ThemeColor::ScrollbarSecondaryColor));
+
+    ImVec2 p1 = {buttonRect.getTopLeft().x, buttonRect.getTopLeft().y + (buttonRect.getBottomRight().y - buttonRect.getTopLeft().y) / 2.0f};
+    ImVec2 p2 = {buttonRect.getBottomRight().x, p1.y};
+    ImGui::GetWindowDrawList()->AddLine(p1, p2, ImColor(0, 0, 0, 255));
+
+    if (codeBlock->isFolded()) {
+        p1 = {buttonRect.getTopLeft().x + ((buttonRect.getBottomRight().x - buttonRect.getTopLeft().x) / 2.2f), buttonRect.getTopLeft().y};
+        p2 = {p1.x, buttonRect.getBottomRight().y};
+        ImGui::GetWindowDrawList()->AddLine(p1, p2, ImColor(0, 0, 0, 255));
+    }
 }
 
 
@@ -1049,9 +1165,9 @@ void TextBox::updateTextBoxSize() {
         m_scroll->updateMaxYScroll(m_height);
 }
 
-void TextBox::updateStateForTextChange(bool isInsert, size_t size) {
+void TextBox::updateStateForTextChange(bool isInsert, size_t size, int lineIndex) {
     updateWriteSelection(isInsert, size);
-    m_lineBuffer->getLines();
+    m_lineBuffer->getLines(lineIndex-1);
     m_scroll->updateMaxScroll(m_width, m_height);
     m_dirty = true;
 }
@@ -1077,6 +1193,18 @@ void TextBox::updateStateForSelectionChange() {
     if (m_writeSelection->isActive() && m_selection->isActive())
         m_selection->clipSelection(m_writeSelection->getStart(), m_writeSelection->getEnd());
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

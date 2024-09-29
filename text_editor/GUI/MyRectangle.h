@@ -7,6 +7,8 @@
 
 #include "imgui.h"
 
+#include <iostream>
+
 class MyRectangle {
 public:
     MyRectangle();

@@ -55,6 +55,10 @@ public:
     float getXAdvance(const std::string& str);
 private:
     void resetTimer();
+    bool isOnHiddenLine();
+
+    bool moveOutOfHiddenUp();
+    bool moveOutOfHiddenDown();
 
     void clearUndoStack();
     void clearRedoStack();

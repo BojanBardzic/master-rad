@@ -303,7 +303,9 @@ void TextEditor::handleMouseInput() {
             m_activeTextBox->horizontalBarClick(position);
         } else if (m_activeTextBox->isInsideVerticalScrollbar(position)) {
             m_activeTextBox->verticalBarClick(position);
-        } if (m_activeTextBox->isInsideTextBox(position)) {
+        } else if (m_activeTextBox->isInsideCodeFoldingBar(position)) {
+            m_activeTextBox->foldingBarClick(position);
+        } else if (m_activeTextBox->isInsideTextBox(position)) {
             m_activeTextBox->moveCursorToMousePosition(position);
         }
     } else if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {

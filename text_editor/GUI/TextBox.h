@@ -7,6 +7,7 @@
 
 #include "imgui.h"
 
+#include "../CodeFolding/CodeBlock.h"
 #include "Cursor.h"
 #include "../File.h"
 #include "Font.h"
@@ -15,10 +16,10 @@
 #include "../PieceTable/PieceTableInstance.h"
 #include "Selection.h"
 #include "Scroll.h"
+#include "../CodeSnippets/SnippetManager.h"
 #include "../SyntaxHiglighting/TextHighlighter.h"
 #include "Theme.h"
 #include "ThemeManager.h"
-#include "../CodeSnippets/SnippetManager.h"
 
 #include <string>
 #include <iostream>
@@ -67,6 +68,7 @@ public:
     void verticalScroll(ImVec2& mousePosition, ImVec2& delta);
     void horizontalBarClick(ImVec2& mousePosition);
     void verticalBarClick(ImVec2& mousePosition);
+    void foldingBarClick(ImVec2& mousePosition);
 
     void increaseFontSize();
     void decreaseFontSize();
@@ -75,6 +77,7 @@ public:
     bool isInsideTextBox(const ImVec2& point);
     bool isInsideHorizontalScrollbar(const ImVec2& point);
     bool isInsideVerticalScrollbar(const ImVec2& point);
+    bool isInsideCodeFoldingBar(const ImVec2& point);
 
     float getWidth() const;
     float getHeight() const;
@@ -84,6 +87,8 @@ public:
     ImVec2 getBottomRightMargin() const;
     const MyRectangle& getHScrollbarRect() const;
     const MyRectangle& getVScrollbarRect() const;
+    const MyRectangle getCodeFoldingRect() const;
+    const MyRectangle getCodeBlockButtonRect(const CodeBlock* codeBlock) const;
     float getScrollbarSize() const;
     Cursor* getCursor() const;
     Theme* getTheme() const;
@@ -113,9 +118,12 @@ private:
     bool reverseTab();
 
     void drawRectangle(ImVec2 currentPosition, float& lineHeight);
+    void drawLineText(size_t& lineIndex, int& currentBlockIndex, std::vector<CodeBlock*>& blocks, ImVec2& textPosition, std::string& line);
     void drawText(ImVec2 textPosition, const std::string& line, size_t index);
     void drawSelection(Selection* selection, ImVec2 textPosition, std::string& line, size_t i, ThemeColor color);
     void drawCursor();
+    void drawCodeFoldingBar();
+    void drawCodeFoldingButton(const CodeBlock* codeBlock);
     void drawScrollBars();
     void drawHorizontalScrollbar();
     void drawVerticalScrollbar();
@@ -131,10 +139,11 @@ private:
 
     void updateUndoRedo();
     void updateTextBoxSize();
-    void updateStateForTextChange(bool isInsert, size_t size);
+    void updateStateForTextChange(bool isInsert, size_t size, int lineIndex);
     void updateWriteSelection(bool isInsert, size_t size);
     void updateStateForCursorMovement();
     void updateStateForSelectionChange();
+    //void updateBlockButtonRects();
 private:
     PieceTableInstance* m_pieceTableInstance;
     LineBuffer* m_lineBuffer;
@@ -144,13 +153,15 @@ private:
     Selection* m_writeSelection;
     Scroll* m_scroll;
     Font* m_font;
+    //std::vector<std::pair<MyRectangle, CodeBlock*>> m_blockButtonRects;
     bool m_dirty;
     float m_width;
     float m_height;
-    ImVec2 m_topLeftMargin = {0.0f, 0.0f};
+    ImVec2 m_topLeftMargin = {20.0f, 0.0f};
     ImVec2 m_bottomRightMargin = {5.0f, 5.0f};
     const float m_scrollbarSize = 15.0f;
     const float m_minScrollSelectSize = 20.0f;
+    const float m_codeFoldingBarWidth = 10.0f;
 };
 
 

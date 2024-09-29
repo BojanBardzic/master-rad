@@ -13,14 +13,20 @@ Cursor::Cursor(LineBuffer* lineBuffer, size_t row, size_t col)
 Cursor::~Cursor() {}
 
 void Cursor::moveRight(size_t times) {
-    auto moved = m_position.moveRight(times);
+    bool moved = m_position.moveRight(times);
+
+    if (!m_lineBuffer->isPlainText() && isOnHiddenLine())
+        moveOutOfHiddenDown();
 
     if (moved)
         resetTimer();
 }
 
 void Cursor::moveLeft(size_t times) {
-    auto moved = m_position.moveLeft(times);
+    bool moved = m_position.moveLeft(times);
+
+    if (!m_lineBuffer->isPlainText() && isOnHiddenLine())
+        moveOutOfHiddenUp();
 
     if (moved)
         resetTimer();
@@ -29,12 +35,18 @@ void Cursor::moveLeft(size_t times) {
 void Cursor::moveUp(size_t times) {
     auto moved = m_position.moveUp(times);
 
+    if (!m_lineBuffer->isPlainText() && isOnHiddenLine())
+        moveOutOfHiddenUp();
+
     if (moved)
         resetTimer();
 }
 
 void Cursor::moveDown(size_t times) {
    auto moved = m_position.moveDown(times);
+
+    if (!m_lineBuffer->isPlainText() && isOnHiddenLine())
+        moveOutOfHiddenDown();
 
    if (moved)
        resetTimer();
@@ -43,12 +55,18 @@ void Cursor::moveDown(size_t times) {
 void Cursor::moveToBeginning() {
     auto moved = m_position.moveToBeginningOfRow();
 
+    if (!m_lineBuffer->isPlainText() && isOnHiddenLine())
+        moveOutOfHiddenUp();
+
     if (moved)
         resetTimer();
 }
 
 void Cursor::moveToEnd() {
     auto moved = m_position.moveToEndOfRow();
+
+    if (!m_lineBuffer->isPlainText() && isOnHiddenLine())
+        moveOutOfHiddenDown();
 
     if (moved)
         resetTimer();
@@ -135,8 +153,12 @@ void Cursor::clipCursor(const TextCoordinates &start, const TextCoordinates &end
 
 ImVec2 Cursor::getCursorPosition(const ImVec2& cursorScreenPosition) {
     auto coords = m_position.getCoords();
+    float yOffset;
 
-    auto yOffset = (coords.m_row - 1) * ImGui::GetFontSize();
+    if (m_lineBuffer->getLanguageMode() != LanguageMode::PlainText)
+        yOffset = m_lineBuffer->getRowsShowing(coords.m_row-1) * ImGui::GetFontSize();
+    else
+        yOffset = (coords.m_row - 1) * ImGui::GetFontSize();
 
     auto line = m_lineBuffer->lineAt(coords.m_row-1);
     auto length = std::min(line.size(), coords.m_col-1);
@@ -171,6 +193,38 @@ void Cursor::resetTimer() {
     m_timestamp = std::chrono::system_clock::now();
 }
 
+bool Cursor::isOnHiddenLine() { return m_lineBuffer->getHidden().at(m_position.getCoords().m_row-1); }
+
+bool Cursor::moveOutOfHiddenUp() {
+    size_t times = 0;
+    auto hidden = m_lineBuffer->getHidden();
+    auto row = m_position.getCoords().m_row;
+
+    while (row-times-1 > 0 && hidden[row-times-1]) {
+        times++;
+    }
+
+    m_position.moveUp(times);
+    m_position.moveToEndOfRow();
+
+    return true;
+}
+
+bool Cursor::moveOutOfHiddenDown() {
+    auto hidden = m_lineBuffer->getHidden();
+    auto row = m_position.getCoords().m_row;
+    size_t times = 0;
+
+    while (row+times-1 < hidden.size() && hidden[row+times-1]) {
+        times++;
+    }
+
+    m_position.moveDown(times);
+    m_position.moveToBeginningOfRow();
+
+    return true;
+}
+
 void Cursor::clearUndoStack() {
     while (!m_cursorUndoStack.empty()) {
         m_cursorUndoStack.pop();
@@ -182,6 +236,7 @@ void Cursor::clearRedoStack() {
         m_cursorRedoStack.pop();
     }
 }
+
 
 
 

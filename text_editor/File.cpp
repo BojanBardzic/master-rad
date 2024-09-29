@@ -68,14 +68,12 @@ bool File::writeToFile(std::string& buffer, const std::string &filePath) {
 
     try {
         output << buffer;
-        output << '\0';
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
         output.close();
 
         std::ofstream backupOutput(filePath);
         backupOutput << backupBuffer;
-        backupOutput << '\0';
         backupOutput.close();
 
         return false;

@@ -5,9 +5,12 @@
 #ifndef TEXT_EDITOR_TEXTCOORDINATES_H
 #define TEXT_EDITOR_TEXTCOORDINATES_H
 
+#include <iostream>
 
 class TextCoordinates {
 public:
+    friend std::ostream& operator<<(std::ostream& out, const TextCoordinates& coords);
+    
     TextCoordinates& operator=(const TextCoordinates& other);
     bool operator==(const TextCoordinates& other) const;
     bool operator!=(const TextCoordinates& other) const;

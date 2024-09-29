@@ -70,11 +70,11 @@ bool TextPosition::moveDown(size_t times) {
     bool moved = false;
     size_t i = 0;
 
-    if (!m_lineBuffer->isEmpty() && !isOnLastLine() && i < times) {
+    while (!m_lineBuffer->isEmpty() && !isOnLastLine() && i < times) {
         m_coords.m_row++;
         moved = true;
         correctColumn();
-        ++i;
+        i++;
     }
 
     return moved;
