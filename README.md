@@ -16,7 +16,13 @@ git submodule update
 
 Kada su podmoduli ažurirani možemo da krenemo sa izgradnjom.
 
-Napravimo *build* datoteku i pozicioniramo se u nju.
+Prvo se pozicioniramo u datoteku *text_editor*.
+
+```
+cd text_editor
+```
+
+Zatim napravimo *build* datoteku i pozicioniramo se u nju.
 ```
 mkdir build
 cd build
