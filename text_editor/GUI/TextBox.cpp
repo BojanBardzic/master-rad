@@ -506,9 +506,11 @@ void TextBox::setMouseSelection(ImVec2& endPosition, ImVec2& delta) {
     const ImVec2 endPositionCorrected = {endPosition.x + m_scroll->getXScroll(), endPosition.y + m_scroll->getYScroll() };
     const ImVec2 startPositionCorrected = {endPositionCorrected.x - delta.x, endPositionCorrected.y - delta.y};
 
-
     auto startPositionCoords = mousePositionToTextCoordinates(startPositionCorrected);
     auto endPositionCoords = mousePositionToTextCoordinates(endPositionCorrected);
+
+    std::cerr << "start position: " << startPositionCoords.m_row << ", " << startPositionCoords.m_col  << std::endl;
+    std::cerr << "end position: " << endPositionCoords.m_row << ", " << endPositionCoords.m_col << std::endl;
 
     if (startPositionCoords > endPositionCoords) {
         auto tmp = startPositionCoords;
@@ -762,14 +764,17 @@ TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosit
 
     size_t actualRow = 0;
     size_t counter = 0;
-    while (actualRow < m_lineBuffer->getLinesSize()) {
-        if (!m_lineBuffer->getHidden()[actualRow]) {
-            if (counter == row)
-                break;
-            else
+
+    if (m_lineBuffer->getLanguageMode() == LanguageMode::PlainText) {
+        actualRow = row;
+    } else {
+        while (actualRow < m_lineBuffer->getLinesSize() && counter < row) {
+            auto hidden = m_lineBuffer->getHidden();
+            if (actualRow < hidden.size() && !hidden[actualRow])
                 counter++;
+
+            actualRow++;
         }
-        actualRow++;
     }
 
     auto line = m_lineBuffer->lineAt(actualRow);

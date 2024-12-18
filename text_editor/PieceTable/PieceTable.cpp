@@ -197,7 +197,6 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
                 // If the inserting index is inside a piece we split it into two then add the new piece between them
                 auto [leftPiece, rightPiece] = PieceDescriptor::splitPiece(piece, index - currentIndex);
 
-
                 erasePiece(i);
 
                 insertPiece(leftPiece, i);
