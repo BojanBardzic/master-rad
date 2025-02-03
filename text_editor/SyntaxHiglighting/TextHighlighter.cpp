@@ -14,8 +14,8 @@ std::vector<ThemeColor> TextHighlighter::getColorMap(std::string& line, Language
     if (LanguageManager::getLanguage(mode)->isPreprocessor())
         searchForPreprocessorCommands(line, colorMap);
 
-    searchForSingleLineComment(line, colorMap, mode);
     searchRegex(line, colorMap, m_stringRegex, ThemeColor::StringColor);
+    searchForSingleLineComment(line, colorMap, mode);
     searchForKeywordsAndNumbers(line, colorMap, mode);
 
     return colorMap;
@@ -86,7 +86,7 @@ void TextHighlighter::searchForPreprocessorCommands(std::string &line, std::vect
 void TextHighlighter::searchForSingleLineComment(std::string& line, std::vector<ThemeColor>& colorMap, LanguageMode mode) {
     auto start = line.find(LanguageManager::getLanguage(mode)->getSingleLineCommentStart());
 
-    if (start != std::string::npos) {
+    if (start != std::string::npos && colorMap[start] != ThemeColor::StringColor) {
         std::fill(colorMap.begin() + start, colorMap.end(), ThemeColor::CommentColor);
     }
 }

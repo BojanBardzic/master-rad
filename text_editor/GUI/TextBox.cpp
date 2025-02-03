@@ -509,9 +509,6 @@ void TextBox::setMouseSelection(ImVec2& endPosition, ImVec2& delta) {
     auto startPositionCoords = mousePositionToTextCoordinates(startPositionCorrected);
     auto endPositionCoords = mousePositionToTextCoordinates(endPositionCorrected);
 
-    std::cerr << "start position: " << startPositionCoords.m_row << ", " << startPositionCoords.m_col  << std::endl;
-    std::cerr << "end position: " << endPositionCoords.m_row << ", " << endPositionCoords.m_col << std::endl;
-
     if (startPositionCoords > endPositionCoords) {
         auto tmp = startPositionCoords;
         startPositionCoords = endPositionCoords;
@@ -544,9 +541,6 @@ void TextBox::horizontalScroll(ImVec2 &mousePosition, ImVec2 &delta) {
         auto hScrollWidth = hScrollRect.getBottomRight().x - hScrollRect.getTopLeft().x;
         auto hSelectWidth = hSelectRect.getBottomRight().x - hSelectRect.getTopLeft().x;
         auto width = hScrollWidth - hSelectWidth;
-
-        std::cerr << "Delta: " <<  delta.x << std::endl;
-        std::cerr << "Width: " << width << std::endl;
 
         auto scrollIncrement = 0.5f * std::abs(delta.x) / width;
         std::cerr << "scrollIncrement: " << scrollIncrement << std::endl;
@@ -758,7 +752,8 @@ void TextBox::copySelectionToClipboard() {
 TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosition) {
     ImGui::PushFont(m_font->getFont());
 
-    float rows = (mousePosition.y - getTopLeft().y) / ImGui::GetFontSize();
+    float rows = (m_scroll->getYScroll() + mousePosition.y - getTopLeft().y) / ImGui::GetFontSize();
+
     int maxValue = m_lineBuffer->isEmpty() ? 0 : m_lineBuffer->getLinesSize() - 1;
     size_t row = std::min(maxValue, (int) rows);
 
@@ -781,16 +776,28 @@ TextCoordinates TextBox::mousePositionToTextCoordinates(const ImVec2 &mousePosit
 
     size_t column = 1;
 
-    float xCoords = getTopLeft().x - 5.0f;
+    float xCoords = getTopLeft().x;
     size_t i = 0;
+    float charWidthSum = 0.0f;
+
+    while (i < line.size() && charWidthSum < m_scroll->getXScroll()) {
+        auto advance = ImGui::GetFont()->GetCharAdvance(line.at(i));
+        if (m_scroll->getXScroll() < charWidthSum + advance) {
+            break;
+        }
+        ++i;
+        ++column;
+        charWidthSum += advance;
+    }
+
     while (i < line.size()) {
         auto advance = ImGui::GetFont()->GetCharAdvance(line.at(i));
         if (mousePosition.x < xCoords + advance) {
             break;
         }
+        ++i;
         ++column;
         xCoords += advance;
-        ++i;
     }
 
     ImGui::PopFont();

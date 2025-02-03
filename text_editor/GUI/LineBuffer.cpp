@@ -84,9 +84,8 @@ void LineBuffer::updateHiddenForBlock(CodeBlock *block) {
 size_t LineBuffer::textCoordinatesToBufferIndex(const TextCoordinates &coords) const {
     size_t index = 0;
 
-    for (size_t i=0; i<coords.m_row-1; i++) {
+    for (size_t i=0; i<coords.m_row-1; i++)
         index += lineAt(i).size() + 1;
-    }
 
     index += (coords.m_col - 1);
 

@@ -171,7 +171,6 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
         if (isPieceOnEndOffBuffer(endPiece)) {
             endPiece->setLength(endPiece->getLength() + length);
         } else {
-            std::cerr << "Appending" << std::endl;
             append(newPiece);
         }
     } else {
@@ -200,9 +199,7 @@ void PieceTable::insert(SourceType sourceType, size_t start, size_t length, size
                 erasePiece(i);
 
                 insertPiece(leftPiece, i);
-
                 insertPiece(newPiece, i+1);
-
                 insertPiece(rightPiece, i+2);
                 break;
             }
