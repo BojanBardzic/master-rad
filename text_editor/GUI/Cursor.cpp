@@ -193,7 +193,12 @@ void Cursor::resetTimer() {
     m_timestamp = std::chrono::system_clock::now();
 }
 
-bool Cursor::isOnHiddenLine() { return m_lineBuffer->getHidden().at(m_position.getCoords().m_row-1); }
+bool Cursor::isOnHiddenLine() {
+    if (m_lineBuffer->getHidden().empty())
+        return false;
+
+    return m_lineBuffer->getHidden().at(m_position.getCoords().m_row-1);
+}
 
 bool Cursor::moveOutOfHiddenUp() {
     size_t times = 0;

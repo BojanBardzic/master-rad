@@ -6,6 +6,7 @@
 #define TEXT_EDITOR_PIECETABLEINSTANCE_H
 
 #include "PieceTable.h"
+#include "../File.h"
 
 class PieceTableInstance {
 public:
@@ -13,11 +14,15 @@ public:
     ~PieceTableInstance();
 
     void newFile();
-    void open(std::string& buffer);
+    void open(std::string& buffer, std::string& filePath);
 
     PieceTable& getInstance() const;
+    File* getFile() const;
+
+    void setFile(std::string& filePath);
 private:
-    PieceTable* m_pieceTable{};
+    PieceTable* m_pieceTable;
+    File* m_file;
 };
 
 

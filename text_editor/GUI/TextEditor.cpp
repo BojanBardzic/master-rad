@@ -344,8 +344,9 @@ void TextEditor::newFile() {
         return;
 
     m_activeTextBox->newFile();
-    if (m_splitScreen)
-        m_inactiveTextBox->setFile(m_activeTextBox->getFile());
+
+    std::cerr << "Exited TextEditor::newFile()" << std::endl;
+
 }
 
 void TextEditor::open() {
@@ -362,12 +363,10 @@ void TextEditor::open() {
 }
 
 void TextEditor::save() {
-    if (m_activeTextBox->getFile() == nullptr)
+    if (m_activeTextBox->getPieceTableInstance()->getFile() == nullptr)
         saveAs();
-    else {
+    else
         m_activeTextBox->save();
-        m_inactiveTextBox->save();
-    }
 }
 
 void TextEditor::saveAs() {
@@ -377,7 +376,6 @@ void TextEditor::saveAs() {
         if (path.find_last_of('.') == std::string::npos)
             path += ".txt";
         m_activeTextBox->saveAs(path);
-        m_inactiveTextBox->saveAs(path);
     }
 }
 
@@ -581,8 +579,9 @@ std::string TextEditor::saveFileDialog() {
 
 int TextEditor::fileNotSavedWarningMessageBox() {
     std::stringstream stream;
+    auto file = m_activeTextBox->getPieceTableInstance()->getFile();
     stream << "Do you want to save changes to "
-           << (m_activeTextBox->getFile() == nullptr ? "Untitled" : m_activeTextBox->getFile()->getName())
+           << (file == nullptr ? "Untitled" : file->getName())
            << "?";
 
 

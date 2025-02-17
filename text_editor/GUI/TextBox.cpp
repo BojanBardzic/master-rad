@@ -6,7 +6,7 @@
 #include <utility>
 
 TextBox::TextBox(float width, float height, const std::string& fontName, PieceTableInstance* instance)
-    : m_dirty(false), m_file(nullptr) {
+    : m_dirty(false) {
 
     if (instance == nullptr)
         m_pieceTableInstance = new PieceTableInstance();
@@ -339,7 +339,9 @@ void TextBox::redo() {
 
 void TextBox::newFile() {
     m_pieceTableInstance->newFile();
+    m_lineBuffer->setLanguageMode(LanguageMode::PlainText);
 
+    m_lineBuffer->clearBlocks();
     m_lineBuffer->getLines();
     m_cursor->clearUndoAndRedoStacks();
     m_cursor->setCoords({1, 1});
@@ -355,9 +357,8 @@ bool TextBox::open(std::string& filePath) {
         return false;
 
     // If the read was successful update the filePath and pass the buffer contents to the piece table
-    m_file = new File(filePath);
-    m_lineBuffer->setLanguageMode(File::getModeForExtension(m_file->getExtension()));
-    m_pieceTableInstance->open(buffer);
+    m_pieceTableInstance->open(buffer, filePath);
+    m_lineBuffer->setLanguageMode(File::getModeForExtension(m_pieceTableInstance->getFile()->getExtension()));
 
     // Update the state of the text box
     m_lineBuffer->getLines();
@@ -375,14 +376,14 @@ bool TextBox::save() {
     m_pieceTableInstance->getInstance().flushInsertBuffer();
     m_pieceTableInstance->getInstance().flushDeleteBuffer();
 
+    m_lineBuffer->getLines();
+
     return saveToFile();
 }
 
 bool TextBox::saveAs(std::string &filePath) {
-    auto oldFile = m_file;
-    m_file = new File(filePath);
-    m_lineBuffer->setLanguageMode(File::getModeForExtension(m_file->getExtension()));
-    delete oldFile;
+    m_pieceTableInstance->setFile(filePath);
+    m_lineBuffer->setLanguageMode(File::getModeForExtension(m_pieceTableInstance->getFile()->getExtension()));
 
     return save();
 }
@@ -503,11 +504,10 @@ void TextBox::moveCursorToMousePosition(ImVec2& mousePosition) {
 }
 
 void TextBox::setMouseSelection(ImVec2& endPosition, ImVec2& delta) {
-    const ImVec2 endPositionCorrected = {endPosition.x + m_scroll->getXScroll(), endPosition.y + m_scroll->getYScroll() };
-    const ImVec2 startPositionCorrected = {endPositionCorrected.x - delta.x, endPositionCorrected.y - delta.y};
+    const ImVec2 startPosition = {endPosition.x - delta.x, endPosition.y - delta.y};
 
-    auto startPositionCoords = mousePositionToTextCoordinates(startPositionCorrected);
-    auto endPositionCoords = mousePositionToTextCoordinates(endPositionCorrected);
+    auto startPositionCoords = mousePositionToTextCoordinates(startPosition);
+    auto endPositionCoords = mousePositionToTextCoordinates(endPosition);
 
     if (startPositionCoords > endPositionCoords) {
         auto tmp = startPositionCoords;
@@ -684,8 +684,6 @@ Cursor *TextBox::getCursor() const { return m_cursor; }
 
 Theme* TextBox::getTheme() const { return ThemeManager::getTheme(); }
 
-File* TextBox::getFile() const { return m_file; }
-
 PieceTableInstance *TextBox::getPieceTableInstance() const { return m_pieceTableInstance; }
 
 bool TextBox::isSelectionActive() const { return m_selection->isActive(); }
@@ -707,8 +705,6 @@ void TextBox::setHeight(float height) { m_height = height; }
 void TextBox::setTopLeftMargin(ImVec2 topLeftMargin) { m_topLeftMargin = topLeftMargin; }
 
 void TextBox::setBottomRightMargin(ImVec2 bottomRightMargin) { m_bottomRightMargin = bottomRightMargin; }
-
-void TextBox::setFile(File *file) { m_file = file; }
 
 // Inserts a char into the piece table at the current cursor position
 // and returns whether the add buffer was initialized after being flushed
@@ -919,12 +915,15 @@ void TextBox::drawText(ImVec2 textPosition, const std::string &line, size_t inde
         ImGui::GetWindowDrawList()->AddText(textPosition, getTheme()->getColor(ThemeColor::TextColor), line.c_str());
         return;
     }
-
+    std::cerr << "index: " << index << std::endl;
     auto colorMap = m_lineBuffer->getColorMap(index);
+    std::cerr << "colorMap.size(): " << colorMap.size() << std::endl;
+    std::cerr << "line.size(): " << line.size() << std::endl;
 
     size_t start = 0;
     while (start < line.size()) {
         size_t length = 0;
+        std::cerr << "start: " << start << std::endl;
         ThemeColor color = colorMap[start];
 
         while (start + length < line.size() && colorMap[start + length] == color) {
@@ -1129,7 +1128,8 @@ void TextBox::updateVScrollSelectRect() {
 
 std::string TextBox::getStatusBarText() {
     std::stringstream stream;
-    stream << (m_file == nullptr ? "Untitled" : m_file->getName()) << (m_dirty ? "*" : " ") << " |  ";
+    auto file = m_pieceTableInstance->getFile();
+    stream << (file == nullptr ? "Untitled" : file->getName()) << (m_dirty ? "*" : " ") << " |  ";
     stream << (m_lineBuffer->getLanguageMode() == LanguageMode::PlainText ? "Plain text" : LanguageManager::getLanguage(m_lineBuffer->getLanguageMode())->getName()) << " |  ";
     stream << "Row: " << m_cursor->getRow() << " Column: " << m_cursor->getCol();
     return stream.str();
@@ -1141,7 +1141,7 @@ bool TextBox::saveToFile() {
     strStream << m_pieceTableInstance->getInstance();
     std::string buffer = strStream.str();
 
-    return File::writeToFile(buffer, m_file->getPath());
+    return File::writeToFile(buffer, m_pieceTableInstance->getFile()->getPath());
 }
 
 // Clears the undo and redo stacks if we are in a past state

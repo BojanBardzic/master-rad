@@ -20,6 +20,7 @@ public:
 
     void getLines(int lineIndex = -1);
     void updateHiddenForBlock(CodeBlock* block);
+    void clearBlocks();
 
     size_t textCoordinatesToBufferIndex(const TextCoordinates& coords) const;
     TextCoordinates bufferIndexToTextCoordinates(const size_t& index);

@@ -81,6 +81,13 @@ void LineBuffer::updateHiddenForBlock(CodeBlock *block) {
     }
 }
 
+void LineBuffer::clearBlocks() {
+    for (auto block : *m_blocks)
+        delete block;
+
+    m_blocks->clear();
+}
+
 size_t LineBuffer::textCoordinatesToBufferIndex(const TextCoordinates &coords) const {
     size_t index = 0;
 
@@ -200,8 +207,6 @@ void LineBuffer::updateColorMap() {
 
     markMultilineComments();
 }
-
-
 
 void LineBuffer::updateBlocks(int lineSizeDiff, int lineIndex) {
     auto newBlocks = new std::vector<CodeBlock*>();
@@ -337,29 +342,47 @@ void LineBuffer::markMultilineComments() {
     const std::string& multilineCommentStart = LanguageManager::getLanguage(m_mode)->getMultiLineCommentStart();
     const std::string& multilineCommentEnd = LanguageManager::getLanguage(m_mode)->getMultiLineCommentEnd();
 
-    for (size_t i=0; i<m_lines->size(); ++i) {
-        std::string& line = m_lines->at(i);
-        std::vector<ThemeColor>& colorMap = m_colorMap->at(i);
+    size_t rowIndex = 0;
+    size_t columnIndex = 0;
+
+    // Go through text
+    while (rowIndex < m_lines->size()) {
+        std::string& line = m_lines->at(rowIndex);
+        std::vector<ThemeColor>& colorMap = m_colorMap->at(rowIndex);
 
         if (insideComment) {
-            auto start = line.find(multilineCommentEnd);
+            auto start = line.find(multilineCommentEnd, columnIndex);
 
+            // if found comment end
             if (start != std::string::npos) {
-                std::fill(colorMap.begin(), colorMap.begin() + start + multilineCommentEnd.size(), ThemeColor::CommentColor);
+                auto newColumnIndex = start + multilineCommentEnd.size();
+                // mark everything in the line until the end
+                std::fill(colorMap.begin() + columnIndex, colorMap.begin() + newColumnIndex, ThemeColor::CommentColor);
+                // move the column index after the comment end
+                columnIndex = newColumnIndex;
                 insideComment = false;
             } else {
-                std::fill(colorMap.begin(), colorMap.end(), ThemeColor::CommentColor);
+                // Mark everything in the line as a comment and move to the next row
+                std::fill(colorMap.begin() + columnIndex, colorMap.end(), ThemeColor::CommentColor);
+                ++rowIndex;
+                columnIndex = 0;
             }
         } else {
-            auto start = line.find(multilineCommentStart);
-            auto end = line.find(multilineCommentEnd);
+            // Look for the comment start
+            auto start = line.find(multilineCommentStart, columnIndex);
 
+            // If found and not inside a string
             if (start != std::string::npos && colorMap[start] != ThemeColor::StringColor && colorMap[start] != ThemeColor::CommentColor) {
-                if (end != std::string::npos)
-                    std::fill(colorMap.begin() + start, colorMap.begin() + end + multilineCommentEnd.size(), ThemeColor::CommentColor);
-                else
-                    std::fill(colorMap.begin() + start, colorMap.end(), ThemeColor::CommentColor);
-                insideComment = true;
+                    auto newColumnIndex =  start + multilineCommentStart.size();
+                    // color the comment start tag
+                    std::fill(colorMap.begin() + start, colorMap.begin() + newColumnIndex, ThemeColor::CommentColor);
+                    // move the column after the comment start
+                    columnIndex = newColumnIndex;
+                    insideComment = true;
+            } else {
+                // if not found move to the next row
+                ++rowIndex;
+                columnIndex = 0;
             }
         }
     }

@@ -92,7 +92,6 @@ public:
     float getScrollbarSize() const;
     Cursor* getCursor() const;
     Theme* getTheme() const;
-    File* getFile() const;
     PieceTableInstance* getPieceTableInstance() const;
     std::string getStatusBarText();
     bool isSelectionActive() const;
@@ -106,7 +105,6 @@ public:
     void setHeight(float height);
     void setTopLeftMargin(ImVec2 topLeftMargin);
     void setBottomRightMargin(ImVec2 bottomRightMargin);
-    void setFile(File* file);
 private:
     bool insertCharToPieceTable(char c);
     bool deleteSelection();
@@ -147,7 +145,6 @@ private:
 private:
     PieceTableInstance* m_pieceTableInstance;
     LineBuffer* m_lineBuffer;
-    File* m_file;
     Cursor* m_cursor;
     Selection* m_selection;
     Selection* m_writeSelection;
