@@ -26,6 +26,7 @@ public:
     static bool isBelowRectangle(const MyRectangle& rect, const ImVec2& point);
     static bool isLeftOfRectangle(const MyRectangle& rect, const ImVec2& point);
     static bool isRightOfRectangle(const MyRectangle& rect, const ImVec2& point);
+    static bool areRectanglesIntersecting(const MyRectangle& rect1, const MyRectangle& rect2);
 private:
     ImVec2 m_topLeft;
     ImVec2 m_bottomRight;

@@ -38,4 +38,13 @@ bool MyRectangle::isRightOfRectangle(const MyRectangle &rect, const ImVec2& poin
     return point.x > rect.m_bottomRight.x;
 }
 
+bool MyRectangle::areRectanglesIntersecting(const MyRectangle &rect1, const MyRectangle &rect2) {
+    if (rect1.m_topLeft.x > rect2.m_bottomRight.x || rect1.m_bottomRight.x < rect2.m_topLeft.x ||
+        rect1.m_topLeft.y > rect2.m_bottomRight.y || rect1.m_bottomRight.y < rect2.m_topLeft.y) {
+        return false;
+    }
+
+    return true;
+}
+
 

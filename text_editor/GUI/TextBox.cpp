@@ -23,8 +23,6 @@ TextBox::TextBox(float width, float height, const std::string& fontName, PieceTa
     m_width = width - m_bottomRightMargin.x - m_topLeftMargin.x;
     m_height = height - m_bottomRightMargin.y - m_topLeftMargin.y;
 
-    // Fixme: Just a test input, will be removed later.
-    //m_pieceTableInstance->getInstance().insert("Hello World! World world world world world world world world world world world world\n\n\nHello There!\nSomething", 0);
     m_lineBuffer->getLines();
 }
 
@@ -57,7 +55,18 @@ void TextBox::draw() {
     auto lineHeight = ImGui::GetFontSize();
     auto linesSize = m_lineBuffer->getLinesSize();
     auto blocks = m_lineBuffer->getBlocks();
+    auto hidden = m_lineBuffer->getHidden();
     auto currentBlockIndex = 0;
+
+    auto xScroll = m_scroll->getXScroll();
+    auto yScroll = m_scroll->getYScroll();
+
+    // Define the current line rectangle
+    auto lineRect = MyRectangle(currentPosition, {currentPosition.x + m_width, currentPosition.y + lineHeight});
+
+    // Define the textBox rectangle and account for the y-axis scroll
+    auto textBoxTopLeft = ImVec2(currentPosition.x, currentPosition.y + yScroll);
+    auto textBoxRect = MyRectangle(textBoxTopLeft, {textBoxTopLeft.x + m_width, textBoxTopLeft.y + m_height});
 
     for (size_t i=0; i<linesSize; ++i) {
         // Get the line
@@ -66,27 +75,36 @@ void TextBox::draw() {
         // Draw background rectangle
         drawRectangle(currentPosition, lineHeight);
 
-        // Add a clip rectangle
-        auto bottomRight = ImVec2(currentPosition.x + m_width, std::min(currentPosition.y + lineHeight + 2.0f, cursorScreenPosition.y + m_height));
-        ImGui::GetWindowDrawList()->PushClipRect(cursorScreenPosition, bottomRight);
+        // If the line is inside the text box, draw it
+        if (MyRectangle::areRectanglesIntersecting(textBoxRect, lineRect)) {
+            // Add a clip rectangle
+            auto bottomRight = ImVec2(currentPosition.x + m_width, std::min(currentPosition.y + lineHeight + 2.0f,
+                                                                            cursorScreenPosition.y + m_height));
+            ImGui::GetWindowDrawList()->PushClipRect(cursorScreenPosition, bottomRight);
 
-        auto xScroll = m_scroll->getXScroll();
-        auto yScroll = m_scroll->getYScroll();
+            auto textPosition = ImVec2(currentPosition.x - xScroll, currentPosition.y - yScroll);
 
-        auto textPosition = ImVec2(currentPosition.x - xScroll, currentPosition.y - yScroll);
+            // Draw the selection if it's active
+            drawSelection(m_writeSelection, textPosition, line, i, ThemeColor::WriteSelectColor);
+            drawSelection(m_selection, textPosition, line, i, ThemeColor::SelectColor);
 
-        // Draw the selection if it's active
-        drawSelection(m_writeSelection, textPosition, line, i, ThemeColor::WriteSelectColor);
-        drawSelection(m_selection, textPosition, line, i, ThemeColor::SelectColor);
+            // Draw the line text
+            drawLineText(i, currentBlockIndex, blocks, textPosition, line);
 
-        // Draw the line text
-        drawLineText(i, currentBlockIndex, blocks, textPosition, line);
-
-        // Deactivate clip rectangle
-        ImGui::GetWindowDrawList()->PopClipRect();
+            // Deactivate clip rectangle
+            ImGui::GetWindowDrawList()->PopClipRect();
+        }
 
         // Update the current position
-        currentPosition.y += ImGui::GetFontSize();
+        currentPosition.y += lineHeight;
+
+        // Update the line rect to fit the next line
+        lineRect.setTopLeft({lineRect.getTopLeft().x, lineRect.getTopLeft().y + lineHeight});
+        lineRect.setBottomRight({lineRect.getBottomRight().x, lineRect.getBottomRight().y + lineHeight});
+
+        if (MyRectangle::isBelowRectangle(textBoxRect, lineRect.getTopLeft())) {
+            break;
+        }
     }
 
     auto yOffset = currentPosition.y - cursorScreenPosition.y;
@@ -543,7 +561,6 @@ void TextBox::horizontalScroll(ImVec2 &mousePosition, ImVec2 &delta) {
         auto width = hScrollWidth - hSelectWidth;
 
         auto scrollIncrement = 0.5f * std::abs(delta.x) / width;
-        std::cerr << "scrollIncrement: " << scrollIncrement << std::endl;
         auto maxXScroll = m_scroll->getMaxXScroll();
 
         if (delta.x > 0.0f)
@@ -884,6 +901,9 @@ inline void TextBox::drawRectangle(ImVec2 currentPosition, float& lineHeight) {
 
 // Determines if the line should be drawn or not based on code folding
 void TextBox::drawLineText(size_t& lineIndex, int& currentBlockIndex, std::vector<CodeBlock*>& blocks, ImVec2& textPosition, std::string& line) {
+    while (currentBlockIndex < blocks.size() && blocks[currentBlockIndex]->getStart().m_row < lineIndex)
+        ++currentBlockIndex;
+
     // If we are on the line of the start of the current block
     if (currentBlockIndex < blocks.size() && lineIndex == blocks[currentBlockIndex]->getStart().m_row) {
 
@@ -915,15 +935,15 @@ void TextBox::drawText(ImVec2 textPosition, const std::string &line, size_t inde
         ImGui::GetWindowDrawList()->AddText(textPosition, getTheme()->getColor(ThemeColor::TextColor), line.c_str());
         return;
     }
-    std::cerr << "index: " << index << std::endl;
+    //std::cerr << "index: " << index << std::endl;
     auto colorMap = m_lineBuffer->getColorMap(index);
-    std::cerr << "colorMap.size(): " << colorMap.size() << std::endl;
-    std::cerr << "line.size(): " << line.size() << std::endl;
+    //std::cerr << "colorMap.size(): " << colorMap.size() << std::endl;
+    //std::cerr << "line.size(): " << line.size() << std::endl;
 
     size_t start = 0;
     while (start < line.size()) {
         size_t length = 0;
-        std::cerr << "start: " << start << std::endl;
+        //std::cerr << "start: " << start << std::endl;
         ThemeColor color = colorMap[start];
 
         while (start + length < line.size() && colorMap[start + length] == color) {
